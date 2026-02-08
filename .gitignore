@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+.nyc_output
+
+# Next.js
+apps/web/.next/
+apps/web/out/
+apps/web/.env.local
+apps/web/.env*.local
+
+# Production
+apps/web/build
+apps/web/dist
+
+# Misc
+.DS_Store
+*.pem
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+services/etl/__pycache__/
+services/etl/*.pyc
+services/etl/.venv/
+services/etl/venv/
+services/etl/.env
+services/etl/*.egg-info/
+services/etl/dist/
+services/etl/build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+.env*.local
+
