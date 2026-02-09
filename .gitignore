@@ -47,3 +47,19 @@ services/etl/build/
 .env.local
 .env*.local
 
+
+# accidental shell artifacts
+eval "$(ssh-agent -s)"
+eval "$(ssh-agent -s)".pub
+
+# deps / builds
+node_modules
+.next
+dist
+out
+.turbo
+coverage
+
+# env
+.env
+.env.*
