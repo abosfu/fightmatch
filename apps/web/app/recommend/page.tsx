@@ -11,14 +11,29 @@ export default function RecommendPage() {
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [recommendations, setRecommendations] = useState<RecommendationResult[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (searchQuery.length > 2) {
       const timer = setTimeout(() => {
         fetch(`/api/fighters?search=${encodeURIComponent(searchQuery)}`)
-          .then((res) => res.json())
-          .then((data) => setSearchResults(data.slice(0, 5)))
-          .catch(console.error)
+          .then((res) => {
+            if (!res.ok) {
+              throw new Error('Failed to search fighters')
+            }
+            return res.json()
+          })
+          .then((data) => {
+            if (Array.isArray(data)) {
+              setSearchResults(data.slice(0, 5))
+            } else {
+              setSearchResults([])
+            }
+          })
+          .catch((err) => {
+            console.error('Error searching fighters:', err)
+            setSearchResults([])
+          })
       }, 300)
 
       return () => clearTimeout(timer)
@@ -31,12 +46,24 @@ export default function RecommendPage() {
     if (!fighterId) return
 
     setLoading(true)
+    setError(null)
     try {
       const res = await fetch(`/api/recommendations?fighterId=${fighterId}`)
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to fetch recommendations')
+      }
       const data = await res.json()
-      setRecommendations(data)
-    } catch (error) {
+      if (Array.isArray(data)) {
+        setRecommendations(data)
+      } else {
+        setRecommendations([])
+        setError('No recommendations available')
+      }
+    } catch (error: any) {
       console.error('Error fetching recommendations:', error)
+      setError(error?.message || 'Failed to fetch recommendations. Please try again.')
+      setRecommendations([])
     } finally {
       setLoading(false)
     }
@@ -92,6 +119,24 @@ export default function RecommendPage() {
             {loading ? 'Loading...' : 'Get Recommendations'}
           </button>
         </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <p className="text-red-800 text-sm">{error}</p>
+            <p className="text-red-600 text-xs mt-2">
+              Make sure the database is set up correctly. See{' '}
+              <a
+                href="/docs/runbook.md"
+                className="underline"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                docs/runbook.md
+              </a>{' '}
+              for setup instructions.
+            </p>
+          </div>
+        )}
 
         {recommendations.length > 0 && (
           <div className="space-y-4">
@@ -203,6 +248,27 @@ export default function RecommendPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {!loading && !error && recommendations.length === 0 && fighterId && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">No recommendations found</h2>
+            <p className="text-gray-600 mb-4">
+              No suitable opponents found for {fighterName || 'this fighter'}.
+            </p>
+            <p className="text-sm text-gray-500">
+              This may happen if there are no other fighters in the same weight class.
+            </p>
+          </div>
+        )}
+
+        {!loading && !fighterId && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Select a fighter</h2>
+            <p className="text-gray-600">
+              Search for a fighter above to get opponent recommendations.
+            </p>
           </div>
         )}
       </div>

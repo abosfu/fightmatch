@@ -12,19 +12,43 @@ export default async function FighterPage({
 }: {
   params: { slug: string }
 }) {
-  const fighter = await getFighterBySlug(params.slug)
+  let fighter
+  try {
+    fighter = await getFighterBySlug(params.slug)
+  } catch (error) {
+    console.error('Error fetching fighter:', error)
+    notFound()
+  }
+
   if (!fighter) {
     notFound()
   }
 
   // Get primary weight class
-  const weightClass = await getFighterPrimaryWeightClass(fighter.id)
+  let weightClass
+  try {
+    weightClass = await getFighterPrimaryWeightClass(fighter.id)
+  } catch (error) {
+    console.error('Error fetching weight class:', error)
+    weightClass = null
+  }
   const weightClassId = weightClass?.id || ''
 
-  const metrics = weightClassId
-    ? await getFighterMetrics(fighter.id, weightClassId)
-    : null
-  const recentFights = await getFighterRecentFights(fighter.id, 5)
+  let metrics = null
+  if (weightClassId) {
+    try {
+      metrics = await getFighterMetrics(fighter.id, weightClassId)
+    } catch (error) {
+      console.error('Error fetching metrics:', error)
+    }
+  }
+
+  let recentFights = []
+  try {
+    recentFights = await getFighterRecentFights(fighter.id, 5)
+  } catch (error) {
+    console.error('Error fetching recent fights:', error)
+  }
 
   return (
     <div className="min-h-screen p-8">

@@ -161,59 +161,71 @@ export async function getCandidateOpponents(
   fighterId: string,
   weightClassId: string
 ): Promise<(FighterWithWeightClass & { metrics: FighterMetrics | null; rank: number | null; tier: string | null })[]> {
-  // Get the fighter's primary weight class
-  const fighter = await getFighterById(fighterId)
-  if (!fighter) return []
+  try {
+    // Get the fighter's primary weight class
+    const fighter = await getFighterById(fighterId)
+    if (!fighter) return []
 
-  // Get all fighters in the same weight class (excluding self)
-  const fighters = await getFightersByWeightClass(weightClassId)
-  const candidates = fighters.filter((f) => f.id !== fighterId)
+    // Get all fighters in the same weight class (excluding self)
+    const fighters = await getFightersByWeightClass(weightClassId)
+    const candidates = fighters.filter((f) => f.id !== fighterId)
 
-  // Get latest ranking for this weight class
-  const { data: ranking } = await supabaseServer
-    .from('rankings')
-    .select('id')
-    .eq('weight_class_id', weightClassId)
-    .order('snapshot_date', { ascending: false })
-    .limit(1)
-    .single()
+    // Get latest ranking for this weight class
+    const { data: ranking, error: rankingError } = await supabaseServer
+      .from('rankings')
+      .select('id')
+      .eq('weight_class_id', weightClassId)
+      .order('snapshot_date', { ascending: false })
+      .limit(1)
+      .single()
 
-  // Get ranking entries
-  const rankingEntries: Record<string, { rank: number; tier: string | null }> = {}
-  if (ranking) {
-    const { data: entries } = await supabaseServer
-      .from('ranking_entries')
-      .select('fighter_id, rank, tier')
-      .eq('ranking_id', ranking.id)
+    // Get ranking entries (ignore errors if no ranking exists)
+    const rankingEntries: Record<string, { rank: number; tier: string | null }> = {}
+    if (ranking && !rankingError) {
+      const { data: entries, error: entriesError } = await supabaseServer
+        .from('ranking_entries')
+        .select('fighter_id, rank, tier')
+        .eq('ranking_id', ranking.id)
 
-    if (entries) {
-      entries.forEach((entry) => {
-        rankingEntries[entry.fighter_id] = { rank: entry.rank, tier: entry.tier }
+      if (entries && !entriesError) {
+        entries.forEach((entry) => {
+          rankingEntries[entry.fighter_id] = { rank: entry.rank, tier: entry.tier }
+        })
+      }
+    }
+
+    // Get metrics for all candidates (ignore errors if no metrics exist)
+    const candidateIds = candidates.map((f) => f.id)
+    let metrics = null
+    let metricsError = null
+    if (candidateIds.length > 0) {
+      const result = await supabaseServer
+        .from('fighter_metrics')
+        .select('*')
+        .eq('weight_class_id', weightClassId)
+        .in('fighter_id', candidateIds)
+      metrics = result.data
+      metricsError = result.error
+    }
+
+    const metricsMap: Record<string, FighterMetrics> = {}
+    if (metrics && !metricsError) {
+      metrics.forEach((m) => {
+        metricsMap[m.fighter_id] = m
       })
     }
+
+    return candidates.map((fighter) => ({
+      ...fighter,
+      metrics: metricsMap[fighter.id] || null,
+      rank: rankingEntries[fighter.id]?.rank || null,
+      tier: rankingEntries[fighter.id]?.tier || null,
+    }))
+  } catch (error) {
+    console.error('Error in getCandidateOpponents:', error)
+    // Return empty array on error rather than throwing
+    return []
   }
-
-  // Get metrics for all candidates
-  const candidateIds = candidates.map((f) => f.id)
-  const { data: metrics } = await supabaseServer
-    .from('fighter_metrics')
-    .select('*')
-    .eq('weight_class_id', weightClassId)
-    .in('fighter_id', candidateIds)
-
-  const metricsMap: Record<string, FighterMetrics> = {}
-  if (metrics) {
-    metrics.forEach((m) => {
-      metricsMap[m.fighter_id] = m
-    })
-  }
-
-  return candidates.map((fighter) => ({
-    ...fighter,
-    metrics: metricsMap[fighter.id] || null,
-    rank: rankingEntries[fighter.id]?.rank || null,
-    tier: rankingEntries[fighter.id]?.tier || null,
-  }))
 }
 
 export async function getRankingEntriesWithFighters(

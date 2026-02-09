@@ -19,51 +19,22 @@ fightmatch/
 
 ## How to Run Locally
 
-### Prerequisites
+**📖 For detailed step-by-step instructions, see [docs/runbook.md](docs/runbook.md)**
 
-- Node.js 18+ and npm
-- Python 3.9+ (for ETL service)
-- Supabase account and project (or local Supabase instance)
+### Quick Start
 
-### Setup
+1. **Create Supabase project** and get credentials
+2. **Run migrations**: Apply `supabase/migrations/0001_init.sql` in Supabase SQL Editor
+3. **Load seed data**: Apply `supabase/seed.sql` in Supabase SQL Editor
+4. **Configure environment**: Create `.env.local` in `apps/web/` with Supabase credentials
+5. **Install dependencies**: `npm install` (root) and `cd apps/web && npm install`
+6. **Run dev server**: `cd apps/web && npm run dev`
 
-1. **Clone and install dependencies:**
-   ```bash
-   npm install
-   cd apps/web && npm install
-   cd ../../packages/shared && npm install
-   ```
+### Health Check
 
-2. **Set up environment variables:**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your Supabase credentials
-   ```
-
-3. **Set up database:**
-   ```bash
-   # Run migrations (via Supabase CLI or dashboard)
-   # Or apply supabase/migrations/0001_init.sql manually
-   
-   # Load seed data
-   # Apply supabase/seed.sql via Supabase SQL editor or CLI
-   ```
-
-4. **Run the web app:**
-   ```bash
-   npm run dev
-   # Or: cd apps/web && npm run dev
-   ```
-   The app will be available at http://localhost:3000
-
-5. **Run ETL (optional, for loading data):**
-   ```bash
-   cd services/etl
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   pip install -e .
-   python scripts/etl_load_seed.py
-   ```
+After setup, verify everything works:
+- Visit `http://localhost:3000/api/health` - should return `{ "ok": true, "db": "connected", ... }`
+- Visit `http://localhost:3000` - should redirect to weight class dashboard
 
 ### Development
 

@@ -72,43 +72,65 @@ export default function FightersClient({
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Name
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Weight Class
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Stance
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {fighters.map((fighter) => (
-              <tr key={fighter.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <Link
-                    href={`/fighters/${fighter.slug}`}
-                    className="text-sm font-medium text-blue-600 hover:text-blue-800"
-                  >
-                    {fighter.name}
-                  </Link>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {fighter.weight_class_name}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {fighter.stance || 'N/A'}
-                </td>
+      {fighters.length === 0 ? (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">No fighters found</h2>
+          <p className="text-gray-600 mb-4">
+            {search
+              ? `No fighters match "${search}" in this weight class.`
+              : 'This weight class doesn\'t have any fighters yet.'}
+          </p>
+          <p className="text-sm text-gray-500 mb-6">
+            To load data, follow the setup instructions in{' '}
+            <a
+              href="/docs/runbook.md"
+              className="text-blue-600 hover:text-blue-800 underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              docs/runbook.md
+            </a>
+          </p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Name
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Weight Class
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Stance
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {fighters.map((fighter) => (
+                <tr key={fighter.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <Link
+                      href={`/fighters/${fighter.slug}`}
+                      className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                    >
+                      {fighter.name}
+                    </Link>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {fighter.weight_class_name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {fighter.stance || 'N/A'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </>
   )
 }

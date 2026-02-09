@@ -6,14 +6,26 @@ export default async function FightersPage({
 }: {
   searchParams: { weightClass?: string; search?: string }
 }) {
-  const weightClasses = await getWeightClasses()
+  let weightClasses
+  try {
+    weightClasses = await getWeightClasses()
+  } catch (error) {
+    console.error('Error fetching weight classes:', error)
+    weightClasses = []
+  }
+
   const selectedWeightClass = searchParams.weightClass || weightClasses[0]?.slug
 
   let fighters: any[] = []
   if (selectedWeightClass) {
-    const wc = await getWeightClassBySlug(selectedWeightClass)
-    if (wc) {
-      fighters = await getFightersByWeightClass(wc.id, searchParams.search)
+    try {
+      const wc = await getWeightClassBySlug(selectedWeightClass)
+      if (wc) {
+        fighters = await getFightersByWeightClass(wc.id, searchParams.search)
+      }
+    } catch (error) {
+      console.error('Error fetching fighters:', error)
+      fighters = []
     }
   }
 
