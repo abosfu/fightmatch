@@ -35,6 +35,29 @@ services/etl/.env
 services/etl/*.egg-info/
 services/etl/dist/
 services/etl/build/
+services/etl_v2/__pycache__/
+services/etl_v2/.venv/
+services/etl_v2/venv/
+services/etl_v2/.env
+services/etl_v2/*.egg-info/
+services/modeling/__pycache__/
+services/modeling/.venv/
+services/modeling/venv/
+services/modeling/.env
+services/modeling/*.egg-info/
+
+# Data / artifacts (pivot pipeline)
+/data/
+/models/
+/outputs/
+*.db
+*.pkl
+*.joblib
+**/local_db.env
+# reports: ignore plots and large files; keep metrics.json
+/reports/*
+!/reports/.gitkeep
+!/reports/metrics.json
 
 # IDE
 .vscode/
