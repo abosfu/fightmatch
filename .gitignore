@@ -63,3 +63,11 @@ coverage
 # env
 .env
 .env.*
+
+# pnpm store (must NEVER be committed)
+.pnpm-store/
+**/.pnpm-store/
+
+# deps
+node_modules/
+
