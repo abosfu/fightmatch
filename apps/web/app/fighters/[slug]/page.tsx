@@ -5,7 +5,7 @@ import {
   getFighterMetrics,
   getFighterRecentFights,
   getFighterPrimaryWeightClass,
-} from '@/lib/db/queries'
+} from '@/lib/data/dataAccess'
 
 export default async function FighterPage({
   params,

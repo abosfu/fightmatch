@@ -1,4 +1,4 @@
-import { getWeightClasses, getFightersByWeightClass, getWeightClassBySlug } from '@/lib/db/queries'
+import { getWeightClasses, getFightersByWeightClass, getWeightClassBySlug } from '@/lib/data/dataAccess'
 import FightersClient from './FightersClient'
 
 export default async function FightersPage({

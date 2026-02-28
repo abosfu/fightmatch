@@ -82,14 +82,9 @@ export default function FightersClient({
           </p>
           <p className="text-sm text-gray-500 mb-6">
             To load data, follow the setup instructions in{' '}
-            <a
-              href="/docs/runbook.md"
-              className="text-blue-600 hover:text-blue-800 underline"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              docs/runbook.md
-            </a>
+            <Link href="/docs/runbook" className="text-blue-600 hover:text-blue-800 underline">
+              docs/runbook
+            </Link>
           </p>
         </div>
       ) : (

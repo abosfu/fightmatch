@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/db/supabaseServer'
-import { getWeightClassBySlug, getRankingEntriesWithFighters } from '@/lib/db/queries'
+import { dataMode } from '@/lib/data/dataMode'
+import { getWeightClassBySlug, getRankingEntriesWithFighters } from '@/lib/data/dataAccess'
 
 export async function GET(request: Request) {
   try {
@@ -47,6 +48,13 @@ export async function POST(request: Request) {
     // Handle test authentication request
     if (body.test) {
       return NextResponse.json({ success: true, authenticated: true })
+    }
+
+    if (dataMode() === 'demo') {
+      return NextResponse.json(
+        { error: 'Admin write requires Supabase; use runbook to configure.' },
+        { status: 403 }
+      )
     }
 
     const { weightClassSlug, entries } = body

@@ -9,8 +9,13 @@ import type {
   RankingEntryWithFighter,
 } from '@fightmatch/shared'
 
+function guardSupabase() {
+  if (!supabaseServer) throw new Error('Supabase not configured')
+}
+
 export async function getWeightClasses(): Promise<WeightClass[]> {
-  const { data, error } = await supabaseServer
+  guardSupabase()
+  const { data, error } = await supabaseServer!
     .from('weight_classes')
     .select('*')
     .order('weight_limit_lbs', { ascending: true })
@@ -20,7 +25,8 @@ export async function getWeightClasses(): Promise<WeightClass[]> {
 }
 
 export async function getWeightClassBySlug(slug: string): Promise<WeightClass | null> {
-  const { data, error } = await supabaseServer
+  guardSupabase()
+  const { data, error } = await supabaseServer!
     .from('weight_classes')
     .select('*')
     .eq('slug', slug)
@@ -37,7 +43,8 @@ export async function getFightersByWeightClass(
   weightClassId: string,
   search?: string
 ): Promise<FighterWithWeightClass[]> {
-  let query = supabaseServer
+  guardSupabase()
+  let query = supabaseServer!
     .from('fighter_weight_class')
     .select(`
       fighter_id,
@@ -64,7 +71,8 @@ export async function getFightersByWeightClass(
 }
 
 export async function getFighterBySlug(slug: string): Promise<Fighter | null> {
-  const { data, error } = await supabaseServer
+  guardSupabase()
+  const { data, error } = await supabaseServer!
     .from('fighters')
     .select('*')
     .eq('slug', slug)
@@ -78,7 +86,8 @@ export async function getFighterBySlug(slug: string): Promise<Fighter | null> {
 }
 
 export async function getFighterById(id: string): Promise<Fighter | null> {
-  const { data, error } = await supabaseServer
+  guardSupabase()
+  const { data, error } = await supabaseServer!
     .from('fighters')
     .select('*')
     .eq('id', id)
@@ -92,7 +101,8 @@ export async function getFighterById(id: string): Promise<Fighter | null> {
 }
 
 export async function getFighterPrimaryWeightClass(fighterId: string): Promise<WeightClass | null> {
-  const { data, error } = await supabaseServer
+  guardSupabase()
+  const { data, error } = await supabaseServer!
     .from('fighter_weight_class')
     .select('weight_classes(*)')
     .eq('fighter_id', fighterId)
@@ -110,7 +120,8 @@ export async function getFighterMetrics(
   fighterId: string,
   weightClassId: string
 ): Promise<FighterMetrics | null> {
-  const { data, error } = await supabaseServer
+  guardSupabase()
+  const { data, error } = await supabaseServer!
     .from('fighter_metrics')
     .select('*')
     .eq('fighter_id', fighterId)
@@ -128,7 +139,8 @@ export async function getFighterRecentFights(
   fighterId: string,
   limit: number = 5
 ): Promise<FightWithParticipants[]> {
-  const { data: participants, error } = await supabaseServer
+  guardSupabase()
+  const { data: participants, error } = await supabaseServer!
     .from('fight_participants')
     .select(`
       fight_id,
@@ -171,7 +183,7 @@ export async function getCandidateOpponents(
     const candidates = fighters.filter((f) => f.id !== fighterId)
 
     // Get latest ranking for this weight class
-    const { data: ranking, error: rankingError } = await supabaseServer
+    const { data: ranking, error: rankingError } = await supabaseServer!
       .from('rankings')
       .select('id')
       .eq('weight_class_id', weightClassId)
@@ -182,7 +194,7 @@ export async function getCandidateOpponents(
     // Get ranking entries (ignore errors if no ranking exists)
     const rankingEntries: Record<string, { rank: number; tier: string | null }> = {}
     if (ranking && !rankingError) {
-      const { data: entries, error: entriesError } = await supabaseServer
+      const { data: entries, error: entriesError } = await supabaseServer!
         .from('ranking_entries')
         .select('fighter_id, rank, tier')
         .eq('ranking_id', ranking.id)
@@ -199,7 +211,7 @@ export async function getCandidateOpponents(
     let metrics = null
     let metricsError = null
     if (candidateIds.length > 0) {
-      const result = await supabaseServer
+      const result = await supabaseServer!
         .from('fighter_metrics')
         .select('*')
         .eq('weight_class_id', weightClassId)
@@ -232,7 +244,8 @@ export async function getRankingEntriesWithFighters(
   weightClassId: string
 ): Promise<RankingEntryWithFighter[]> {
   // Get latest ranking
-  const { data: ranking } = await supabaseServer
+  guardSupabase()
+  const { data: ranking } = await supabaseServer!
     .from('rankings')
     .select('id')
     .eq('weight_class_id', weightClassId)
@@ -242,7 +255,7 @@ export async function getRankingEntriesWithFighters(
 
   if (!ranking) return []
 
-  const { data, error } = await supabaseServer
+  const { data, error } = await supabaseServer!
     .from('ranking_entries')
     .select(`
       *,
@@ -255,7 +268,7 @@ export async function getRankingEntriesWithFighters(
 
   // Get metrics for all fighters
   const fighterIds = (data || []).map((entry: any) => entry.fighter_id)
-  const { data: metrics } = await supabaseServer
+  const { data: metrics } = await supabaseServer!
     .from('fighter_metrics')
     .select('*')
     .eq('weight_class_id', weightClassId)

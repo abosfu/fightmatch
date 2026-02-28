@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getWeightClassBySlug, getRankingEntriesWithFighters } from '@/lib/db/queries'
+import { getWeightClassBySlug, getRankingEntriesWithFighters } from '@/lib/data/dataAccess'
 
 export default async function WeightClassPage({
   params,
@@ -32,7 +32,7 @@ export default async function WeightClassPage({
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">No fighters found</h2>
             <p className="text-gray-600 mb-4">
-              This weight class doesn't have any ranked fighters yet.
+              This weight class doesn&apos;t have any ranked fighters yet.
             </p>
             <p className="text-sm text-gray-500 mb-6">
               To load data, follow the setup instructions in{' '}

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getFighterRecentFights, getFighterById, getFighterBySlug } from '@/lib/db/queries'
+import { getFighterRecentFights, getFighterById, getFighterBySlug } from '@/lib/data/dataAccess'
 
 export async function GET(
   request: Request,

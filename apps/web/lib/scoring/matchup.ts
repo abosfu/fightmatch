@@ -69,16 +69,16 @@ function scoreCompetitiveness(
     }
   }
 
-  // Opponent strength proximity (using win rates as proxy)
-  const fighterWinRate = fighter.metrics
-    ? fighter.metrics.wins / Math.max(fighter.metrics.total_fights, 1)
-    : 0.5
-  const opponentWinRate = opponent.metrics
-    ? opponent.metrics.wins / Math.max(opponent.metrics.total_fights, 1)
-    : 0.5
-
-  const winRateDiff = Math.abs(fighterWinRate - opponentWinRate)
-  score += (1 - winRateDiff) * 0.2
+  // Opponent strength proximity (using win rates as proxy). Only apply when both have metrics;
+  // with null metrics we stay neutral so large rank gaps are not inflated.
+  if (fighter.metrics && opponent.metrics) {
+    const fighterWinRate =
+      fighter.metrics.wins / Math.max(fighter.metrics.total_fights, 1)
+    const opponentWinRate =
+      opponent.metrics.wins / Math.max(opponent.metrics.total_fights, 1)
+    const winRateDiff = Math.abs(fighterWinRate - opponentWinRate)
+    score += (1 - winRateDiff) * 0.2
+  }
 
   return Math.min(Math.max(score, 0), 1)
 }
@@ -209,12 +209,11 @@ function generateRisks(
 ): string[] {
   const risks: string[] = []
 
-  if (components.competitiveness < 0.4) {
-    if (fighter.rank !== null && opponent.rank !== null) {
-      const rankDiff = Math.abs(fighter.rank - opponent.rank)
-      if (rankDiff > 5) {
-        risks.push(`Large ranking gap (#${fighter.rank} vs #${opponent.rank}) may indicate mismatch`)
-      }
+  // Always flag large ranking gap when rankDiff is large, regardless of competitiveness threshold
+  if (fighter.rank !== null && opponent.rank !== null) {
+    const rankDiff = Math.abs(fighter.rank - opponent.rank)
+    if (rankDiff > 5) {
+      risks.push(`Large ranking gap (#${fighter.rank} vs #${opponent.rank}) may indicate mismatch`)
     }
   }
 

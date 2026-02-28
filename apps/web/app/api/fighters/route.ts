@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getFightersByWeightClass, getWeightClassBySlug } from '@/lib/db/queries'
+import { getFightersByWeightClass, getWeightClassBySlug } from '@/lib/data/dataAccess'
 
 export async function GET(request: Request) {
   try {

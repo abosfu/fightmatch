@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getFighterById, getCandidateOpponents, getWeightClassBySlug, getFighterPrimaryWeightClass } from '@/lib/db/queries'
+import { getFighterById, getCandidateOpponents, getWeightClassBySlug, getFighterPrimaryWeightClass } from '@/lib/data/dataAccess'
 import { scoreMatchup } from '@/lib/scoring/matchup'
 import type { RecommendationResult } from '@fightmatch/shared'
 

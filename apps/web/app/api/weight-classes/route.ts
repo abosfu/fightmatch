@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getWeightClasses } from '@/lib/db/queries'
+import { getWeightClasses } from '@/lib/data/dataAccess'
 
 export async function GET() {
   try {
