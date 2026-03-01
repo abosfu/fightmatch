@@ -1,62 +1,71 @@
 # FightMatch
 
-A UFC matchmaking + rankings decision support tool (internal tool).
+Data-backed decision-support system for UFC matchmaking: **reproducible dataset → win-probability model → constrained matchmaking engine** with explainability.
 
-## Project Story
+## Pivot pipeline (MVP)
 
-FightMatch is a **decision-support system** (not a fan app) for UFC matchmaking and rankings. **Inputs:** fighters, rankings, fight history, and constraints/policies. **Outputs:** ranked matchup recommendations with explanations and blocked-reason surfacing. Technical highlights: a decision engine (constraints + multi-objective scoring), test-covered scoring logic, and a Supabase-ready data layer.
+1. **Data** — Postgres-backed dataset with a feature table of "fighter before this fight" rows (no leakage).
+2. **Model** — Train and evaluate a baseline (Logistic Regression + LightGBM); time-based train/test split; AUC, log loss, Brier, calibration.
+3. **Matchmaking** — Filter candidates by hard constraints; rank by multi-objective score (p_win + activity/competitiveness); expose constraints passed/failed and score components.
 
-## Project Structure
+## Project structure
 
 ```
 fightmatch/
-├── apps/
-│   └── web/              # Next.js App Router application
+├── apps/web/                 # Next.js app (demo + optional Supabase UI)
 ├── services/
-│   └── etl/              # Python ETL service for data loading
-├── packages/
-│   └── shared/           # Shared TypeScript types and Zod schemas
-├── docs/                 # Architecture and product documentation
-└── supabase/
-    └── migrations/       # Database migrations
+│   ├── etl/                  # Legacy ETL
+│   ├── etl_v2/               # Ingest + feature builder (no leakage)
+│   └── modeling/             # Train, evaluate, matchmaking engine
+├── infra/db/migrations/      # Pivot schema (pivot_* tables)
+├── data/                     # CSV dataset (gitignored)
+├── reports/                  # metrics.json, calibration.png (gitignored)
+├── models/                   # Saved models (gitignored)
+└── packages/shared/          # Shared types
 ```
 
-## How to Run Locally
+## Quick start (pipeline)
 
-**📖 For detailed step-by-step instructions, see [docs/runbook.md](docs/runbook.md)**
+1. **Postgres** — Create a DB and run migrations:
+   ```bash
+   psql $DATABASE_URL -f infra/db/migrations/001_pivot_schema.sql
+   ```
 
-### Demo mode (no Supabase)
+2. **Dataset** — Place CSVs in `data/`: `fighters.csv`, `fights.csv`, `fight_participants.csv` (see `data/README.md`). Then:
+   ```bash
+   cd services/etl_v2 && pip install -e . && fightmatch-ingest --data-dir ../../data && fightmatch-build-features
+   ```
 
-Without any environment variables, the app runs in **demo mode** with mock data. From the repo root:
+3. **Train** — Time-based split, train LR + LightGBM, write metrics and artifacts:
+   ```bash
+   cd services/modeling && pip install -e . && fightmatch-train
+   ```
+   Outputs: `reports/metrics.json`, `reports/calibration.png`, `models/*.joblib`.
 
-- `pnpm install` then `pnpm -C apps/web dev`
-- Open `http://localhost:3000` for the homepage; try **Decision Support Demo** (`/decision/fighter-1`) and **Division Dashboards** (`/wc/lightweight`).
+4. **Recommend** — Ranked candidates with p_win and explanations:
+   ```bash
+   fightmatch-recommend --fighter_id <UUID> --weight_class "Lightweight" --top_k 10
+   ```
 
-### Quick Start (Supabase)
+5. **API** — Thin Next.js route that calls the engine:  
+   `GET /api/matchmaking?fighter_id=&weight_class=` (requires `DATABASE_URL` and trained model).
 
-1. **Create Supabase project** and get credentials
-2. **Run migrations**: Apply `supabase/migrations/0001_init.sql` in Supabase SQL Editor
-3. **Load seed data**: Apply `supabase/seed.sql` in Supabase SQL Editor
-4. **Configure environment**: Create `.env.local` in `apps/web/` with Supabase credentials
-5. **Install dependencies**: `npm install` (root) and `cd apps/web && npm install`
-6. **Run dev server**: `cd apps/web && npm run dev`
+## CLI summary
 
-### Health Check
+| Command | Description |
+|--------|-------------|
+| `fightmatch-ingest --data-dir <dir>` | Ingest CSVs into pivot_* tables |
+| `fightmatch-build-features` | Build fighter_fight_features (pre-fight only) |
+| `fightmatch-train` | Train models, evaluate, save metrics + models |
+| `fightmatch-recommend --fighter_id X --weight_class Y` | Matchmaking: ranked list + p_win + constraints + score components |
 
-After setup, verify everything works:
-- Visit `http://localhost:3000/api/health` - should return `{ "ok": true, "db": "connected", ... }`
-- Visit `http://localhost:3000` - should redirect to weight class dashboard
+## Web app
 
-### Development
+- **Demo mode** (no env): `pnpm install && pnpm -C apps/web dev` — mock data, no Supabase.
+- **Supabase**: set `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` in `apps/web/.env.local`; run `supabase/migrations` and seed.
 
-- **Web app:** `cd apps/web && npm run dev`
-- **Tests:** `cd apps/web && npm run test`
-- **Build:** `cd apps/web && npm run build`
+## Tech stack
 
-## Tech Stack
-
-- **Frontend:** Next.js 14 (App Router), TypeScript, Tailwind CSS
-- **Database:** Supabase (PostgreSQL)
-- **ETL:** Python (requests, beautifulsoup4, pandas)
-- **Validation:** Zod
-
+- **Data**: Postgres, pandas, psycopg2
+- **Model**: scikit-learn (LogisticRegression), LightGBM
+- **App**: Next.js 14, TypeScript, Supabase (optional)
