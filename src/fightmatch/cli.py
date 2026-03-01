@@ -7,8 +7,9 @@ import json
 import sys
 from pathlib import Path
 
-from fightmatch.config import MatchConfig, ScrapeConfig, get_cache_dir, get_features_dir, get_processed_dir
-from fightmatch.data import build_dataset, build_features
+from fightmatch.config import MatchConfig, ScrapeConfig
+from fightmatch.scrape.store import build_dataset
+from fightmatch.match.features import build_features
 from fightmatch.match import rank_by_division, select_matchups, explain_matchup
 from fightmatch.scrape import scrape_since
 from fightmatch.utils.log import log
