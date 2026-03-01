@@ -1,2 +1,0 @@
-# FightMatch ETL Service
-

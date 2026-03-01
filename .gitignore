@@ -1,63 +1,26 @@
-# Dependencies
-node_modules/
-.pnp
-.pnp.js
-
-# Testing
-coverage/
-.nyc_output
-
-# Next.js
-apps/web/.next/
-apps/web/out/
-apps/web/.env.local
-apps/web/.env*.local
-
-# Production
-apps/web/build
-apps/web/dist
-
-# Misc
-.DS_Store
-*.pem
-
-# Debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
 # Python
-services/etl/__pycache__/
-services/etl/*.pyc
-services/etl/.venv/
-services/etl/venv/
-services/etl/.env
-services/etl/*.egg-info/
-services/etl/dist/
-services/etl/build/
-services/etl_v2/__pycache__/
-services/etl_v2/.venv/
-services/etl_v2/venv/
-services/etl_v2/.env
-services/etl_v2/*.egg-info/
-services/modeling/__pycache__/
-services/modeling/.venv/
-services/modeling/venv/
-services/modeling/.env
-services/modeling/*.egg-info/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
 
-# Data / artifacts (pivot pipeline)
-/data/
-/models/
-/outputs/
+
+# Data / artifacts
+data/
 *.db
 *.pkl
 *.joblib
-**/local_db.env
-# reports: ignore plots and large files; keep metrics.json
-/reports/*
-!/reports/.gitkeep
-!/reports/metrics.json
+
+# Env
+.env
+.env.*
+*.local
 
 # IDE
 .vscode/
@@ -65,32 +28,9 @@ services/modeling/*.egg-info/
 *.swp
 *.swo
 
-# Environment
-.env
-.env.local
-.env*.local
+# OS
+.DS_Store
 
 
-# accidental shell artifacts
-eval "$(ssh-agent -s)"
-eval "$(ssh-agent -s)".pub
-
-# deps / builds
-node_modules
-.next
-dist
-out
-.turbo
-coverage
-
-# env
-.env
-.env.*
-
-# pnpm store (must NEVER be committed)
-.pnpm-store/
-**/.pnpm-store/
-
-# deps
 node_modules/
-
+.pnpm-store/
