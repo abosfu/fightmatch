@@ -46,3 +46,13 @@ def get_processed_dir() -> Path:
 
 def get_features_dir() -> Path:
     return Path(os.environ.get("FIGHTMATCH_FEATURES_DIR", "data/features"))
+
+
+def normalize_division(label: str | None) -> str:
+    """Normalize division/weight class for comparison (e.g. 'Welterweight Bout' -> 'welterweight')."""
+    if not label:
+        return ""
+    s = (label or "").strip().lower()
+    if s.endswith(" bout"):
+        s = s[:-5].strip()
+    return s

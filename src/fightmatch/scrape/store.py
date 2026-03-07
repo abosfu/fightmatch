@@ -7,6 +7,8 @@ import re
 from datetime import datetime
 from pathlib import Path
 
+from fightmatch.config import normalize_division
+from fightmatch.utils.log import log
 from .parse import parse_event_page, parse_fight_details
 
 
@@ -25,14 +27,15 @@ def _normalize_date(s: str | None) -> str | None:
     return s
 
 
-def build_dataset(raw_dir: Path, out_dir: Path) -> None:
-    """Read raw_dir/ufcstats (events/*.html, fights/*.html), write fighters.json, events.json, bouts.json, stats.jsonl."""
+def build_dataset(raw_dir: Path, out_dir: Path, division: str = "") -> None:
+    """Read raw_dir/ufcstats (events/*.html, fights/*.html). Keep all events; if division set, only emit bouts/stats for that weight class."""
     raw_base = Path(raw_dir) / "ufcstats"
     events_dir = raw_base / "events"
     fights_dir = raw_base / "fights"
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    target_division = normalize_division(division) if division else ""
     fighters_by_id: dict[str, dict] = {}
     events_list: list[dict] = []
     bouts_list: list[dict] = []
@@ -45,6 +48,10 @@ def build_dataset(raw_dir: Path, out_dir: Path) -> None:
             event_info, bouts, fight_links = parse_event_page(html, event_id)
             events_list.append(event_info)
             for b in bouts:
+                if target_division and normalize_division(b.get("weight_class")) != target_division:
+                    continue
+                if not b.get("bout_id"):
+                    continue
                 bouts_list.append(b)
                 for fid in (b.get("red_fighter_id"), b.get("blue_fighter_id")):
                     if fid and fid not in fighters_by_id:
@@ -52,6 +59,13 @@ def build_dataset(raw_dir: Path, out_dir: Path) -> None:
 
             for fl in fight_links:
                 bout_id = fl.get("bout_id")
+                if not bout_id:
+                    continue
+                if target_division:
+                    # Only process fights for bouts we kept
+                    matching = next((x for x in bouts if x.get("bout_id") == bout_id), None)
+                    if not matching or normalize_division(matching.get("weight_class")) != target_division:
+                        continue
                 fight_path = fights_dir / f"{bout_id}.html"
                 if not fight_path.exists():
                     continue
@@ -79,9 +93,17 @@ def build_dataset(raw_dir: Path, out_dir: Path) -> None:
                 e = {**e, "date": _normalize_date(e["date"])}
             unique_events.append(e)
 
-    (out_dir / "fighters.json").write_text(json.dumps(list(fighters_by_id.values()), indent=2), encoding="utf-8")
+    fighters_out = list(fighters_by_id.values())
+    (out_dir / "fighters.json").write_text(json.dumps(fighters_out, indent=2), encoding="utf-8")
     (out_dir / "events.json").write_text(json.dumps(unique_events, indent=2), encoding="utf-8")
     (out_dir / "bouts.json").write_text(json.dumps(bouts_list, indent=2), encoding="utf-8")
     with open(out_dir / "stats.jsonl", "w", encoding="utf-8") as f:
         for s in stats_list:
             f.write(json.dumps(s) + "\n")
+
+    # Defensive logging for pipeline visibility
+    div_label = division or "All"
+    log(
+        f"Dataset: events={len(unique_events)}, bouts_kept={len(bouts_list)}, "
+        f"fighters={len(fighters_out)}, stats_rows={len(stats_list)} (division={div_label})"
+    )

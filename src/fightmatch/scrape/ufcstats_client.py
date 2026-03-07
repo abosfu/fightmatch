@@ -112,12 +112,14 @@ def scrape_since(
     since_date: str,
     raw_dir: Path,
     config: ScrapeConfig | None = None,
+    division: str = "",
 ) -> None:
     """
     Scrape events since date; save raw HTML under raw_dir/ufcstats/.
-    Structure: raw_dir/ufcstats/events.html, raw_dir/ufcstats/events/<id>.html,
-    raw_dir/ufcstats/fights/<bout_id>.html.
+    Event pages are always cached. If division is set, only fetch/save fight pages for that weight class.
     """
+    from fightmatch.config import normalize_division
+
     config = config or ScrapeConfig()
     cache = DiskCache(Path(raw_dir) / "ufcstats", ttl_seconds=config.rate_limit_seconds * 0 + 86400 * 7)
     rate_limiter = RateLimiter(config.rate_limit_seconds, config.rate_limit_jitter)
@@ -132,6 +134,8 @@ def scrape_since(
 
     from .parse import parse_event_page, parse_fight_details
 
+    target_division = normalize_division(division) if division else ""
+
     for ev in events:
         event_id = ev.get("event_id")
         url = ev.get("url")
@@ -141,8 +145,18 @@ def scrape_since(
         html = fetch(url, config, cache, rate_limiter).decode("utf-8", errors="replace")
         (events_dir / f"{event_id}.html").write_text(html, encoding="utf-8")
         event_info, bouts, fight_links = parse_event_page(html, event_id, config.base_url)
+        # If division filter: only fetch fights for bouts in that weight class
+        bout_ids_in_division = set()
+        if target_division:
+            for b in bouts:
+                if b.get("bout_id") and normalize_division(b.get("weight_class")) == target_division:
+                    bout_ids_in_division.add(b["bout_id"])
         for fl in fight_links:
             bout_id = fl.get("bout_id")
+            if not bout_id:
+                continue
+            if target_division and bout_id not in bout_ids_in_division:
+                continue
             u = fl.get("url")
             if not u:
                 continue
