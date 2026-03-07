@@ -6,7 +6,7 @@ import csv
 from pathlib import Path
 from typing import Optional
 
-from fightmatch.config import MatchConfig
+from fightmatch.config import MatchConfig, normalize_division
 
 
 def load_features_csv(path: Path) -> list[dict]:
@@ -68,12 +68,6 @@ def rank_score(
     return round(score, 6)
 
 
-def _normalize_division(wc: Optional[str]) -> str:
-    if not wc:
-        return ""
-    return wc.strip().lower()
-
-
 def rank_by_division(
     features_path: Path,
     division: str,
@@ -85,9 +79,9 @@ def rank_by_division(
     """
     config = config or MatchConfig()
     rows = load_features_csv(features_path)
-    target = _normalize_division(division)
+    target = normalize_division(division)
     if target:
-        rows = [r for r in rows if _normalize_division(r.get("weight_class")) == target]
+        rows = [r for r in rows if normalize_division(r.get("weight_class")) == target]
     scored = [(r, rank_score(r, config)) for r in rows]
     scored.sort(key=lambda x: -x[1])
     return scored[:top_n]

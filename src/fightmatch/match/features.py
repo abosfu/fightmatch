@@ -7,6 +7,9 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from fightmatch.config import normalize_division
+from fightmatch.utils.log import log
+
 
 def _parse_date(s: str | None) -> datetime | None:
     if not s:
@@ -37,8 +40,8 @@ def load_processed(processed_dir: Path) -> tuple[list[dict], list[dict], list[di
     return fighters, events, bouts, stats_list
 
 
-def build_features(processed_dir: Path, out_path: Path) -> None:
-    """Build per-fighter features CSV. Writes fighter_id, name, weight_class, and rolling feature columns."""
+def build_features(processed_dir: Path, out_path: Path, division: str = "") -> None:
+    """Build per-fighter features CSV. If division is set, only output rows for that weight class."""
     fighters, events, bouts, stats_list = load_processed(processed_dir)
     event_dates = {e["event_id"]: _parse_date(e.get("date")) for e in events if e.get("event_id")}
     event_dates = {k: v for k, v in event_dates.items() if v is not None}
@@ -84,6 +87,7 @@ def build_features(processed_dir: Path, out_path: Path) -> None:
         "sig_str_diff_per_min", "td_rate", "td_attempts_per_15", "control_per_15",
         "finish_rate", "opponent_recent_win_pct_avg",
     ]
+    target_division = normalize_division(division) if division else ""
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     ref = datetime.now()
@@ -138,7 +142,14 @@ def build_features(processed_dir: Path, out_path: Path) -> None:
             "opponent_recent_win_pct_avg": opp_avg,
         })
 
+    if target_division:
+        rows = [r for r in rows if normalize_division(r.get("weight_class")) == target_division]
+
     with open(out_path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         w.writeheader()
         w.writerows(rows)
+
+    # Defensive logging: how many feature rows we produced
+    div_label = division or "All"
+    log(f"Features: rows={len(rows)} (division={div_label}) -> {out_path}")

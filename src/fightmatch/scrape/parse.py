@@ -135,7 +135,10 @@ def parse_event_page(
             if re.match(r"\d+:\d+", t):
                 time_val = t
             if any(w in t.lower() for w in ["heavyweight", "lightweight", "welterweight", "middleweight", "featherweight", "bantamweight", "flyweight", "light heavyweight", "women"]):
-                weight_class = t
+                # Normalize e.g. "Welterweight Bout" -> "Welterweight" for consistent comparison
+                weight_class = t.strip()
+                if weight_class.lower().endswith(" bout"):
+                    weight_class = weight_class[:-5].strip()
         # Winner: often first fighter in row is winner for W/L column
         wl_cell = tr.select_one("td .b-flag__text, td .b-flag")
         if wl_cell:

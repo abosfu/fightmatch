@@ -6,10 +6,17 @@ import csv
 
 import pytest
 
-from fightmatch.config import MatchConfig
+from fightmatch.config import MatchConfig, normalize_division
 from fightmatch.match.rank import rank_score, load_features_csv, rank_by_division
 from fightmatch.match.score import matchup_score, select_matchups
 from fightmatch.match.explain import explain_matchup
+
+
+def test_normalize_division():
+    assert normalize_division("Welterweight") == "welterweight"
+    assert normalize_division("Welterweight Bout") == "welterweight"
+    assert normalize_division(None) == ""
+    assert normalize_division("  Lightweight  ") == "lightweight"
 
 
 def test_rank_score():
@@ -32,19 +39,20 @@ def test_rank_score():
 def test_load_features_csv():
     with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
         f.write("fighter_id,name,weight_class,activity_recency_days,win_streak,last_5_win_pct,sig_str_diff_per_min,td_rate,td_attempts_per_15,control_per_15,finish_rate,opponent_recent_win_pct_avg\n")
-        f.write("f1,Alice,Lightweight,60,2,0.8,5.0,0.5,3.0,30,0.4,0.6\n")
-        f.write("f2,Bob,Lightweight,120,1,0.6,4.0,0.3,2.0,20,0.2,0.5\n")
+        f.write("f1,Alice,Welterweight,60,2,0.8,5.0,0.5,3.0,30,0.4,0.6\n")
+        f.write("f2,Bob,Welterweight,120,1,0.6,4.0,0.3,2.0,20,0.2,0.5\n")
         path = Path(f.name)
     try:
         rows = load_features_csv(path)
         assert len(rows) == 2
         assert rows[0]["win_streak"] == 2.0
-        assert rows[0]["weight_class"] == "Lightweight"
+        assert rows[0]["weight_class"] == "Welterweight"
     finally:
         path.unlink(missing_ok=True)
 
 
 def test_rank_by_division():
+    """Division filter: Welterweight-only path (UFC, data-backed, welterweight-first)."""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
         w = csv.DictWriter(
             f,
@@ -52,12 +60,12 @@ def test_rank_by_division():
                         "sig_str_diff_per_min", "td_rate", "td_attempts_per_15", "control_per_15", "finish_rate", "opponent_recent_win_pct_avg"],
         )
         w.writeheader()
-        w.writerow({"fighter_id": "f1", "name": "A", "weight_class": "Lightweight", "activity_recency_days": 60, "win_streak": 2, "last_5_win_pct": 0.8, "sig_str_diff_per_min": 5, "td_rate": 0.5, "td_attempts_per_15": 3, "control_per_15": 30, "finish_rate": 0.4, "opponent_recent_win_pct_avg": 0.6})
-        w.writerow({"fighter_id": "f2", "name": "B", "weight_class": "Lightweight", "activity_recency_days": 90, "win_streak": 1, "last_5_win_pct": 0.6, "sig_str_diff_per_min": 4, "td_rate": 0.3, "td_attempts_per_15": 2, "control_per_15": 20, "finish_rate": 0.2, "opponent_recent_win_pct_avg": 0.5})
+        w.writerow({"fighter_id": "f1", "name": "A", "weight_class": "Welterweight", "activity_recency_days": 60, "win_streak": 2, "last_5_win_pct": 0.8, "sig_str_diff_per_min": 5, "td_rate": 0.5, "td_attempts_per_15": 3, "control_per_15": 30, "finish_rate": 0.4, "opponent_recent_win_pct_avg": 0.6})
+        w.writerow({"fighter_id": "f2", "name": "B", "weight_class": "Welterweight", "activity_recency_days": 90, "win_streak": 1, "last_5_win_pct": 0.6, "sig_str_diff_per_min": 4, "td_rate": 0.3, "td_attempts_per_15": 2, "control_per_15": 20, "finish_rate": 0.2, "opponent_recent_win_pct_avg": 0.5})
         w.writerow({"fighter_id": "f3", "name": "C", "weight_class": "Heavyweight", "activity_recency_days": 100, "win_streak": 0, "last_5_win_pct": 0.4, "sig_str_diff_per_min": 3, "td_rate": 0.2, "td_attempts_per_15": 1, "control_per_15": 10, "finish_rate": 0.1, "opponent_recent_win_pct_avg": 0.4})
         path = Path(f.name)
     try:
-        ranked = rank_by_division(path, "Lightweight", top_n=5)
+        ranked = rank_by_division(path, "Welterweight", top_n=5)
         assert len(ranked) == 2
         assert ranked[0][0]["fighter_id"] == "f1"
         ranked_all = rank_by_division(path, "", top_n=10)

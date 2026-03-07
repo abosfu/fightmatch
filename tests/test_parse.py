@@ -33,7 +33,7 @@ def test_parse_event_page():
     b1 = next(b for b in bouts if b["bout_id"] == "bout1")
     assert b1["red_fighter_id"] == "fred1"
     assert b1["blue_fighter_id"] == "barney2"
-    assert b1["weight_class"] == "Lightweight"
+    assert b1["weight_class"] == "Welterweight"
     assert b1["winner"] == "red"
     assert len(fight_links) >= 2
 

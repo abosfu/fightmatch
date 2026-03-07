@@ -1,4 +1,4 @@
-"""CLI smoke tests via subprocess (no internal imports, no network)."""
+"""CLI smoke tests: welterweight pipeline with fixtures (no network)."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import pytest
 
 
 def _run_fightmatch(*args: str, cwd: Optional[str] = None, env: Optional[dict] = None) -> subprocess.CompletedProcess:
-    """Run fightmatch CLI via same Python as test runner (no network if scrape is not invoked)."""
+    """Run fightmatch CLI via same Python as test runner."""
     cmd = [sys.executable, "-m", "fightmatch.cli"] + list(args)
     return subprocess.run(
         cmd,
@@ -31,7 +31,7 @@ def fixtures_dir() -> Path:
 
 @pytest.fixture
 def raw_dir_from_fixtures(fixtures_dir: Path, tmp_path: Path) -> Path:
-    """Build a raw dir with fixture HTML (ufcstats/events/*.html, ufcstats/fights/*.html)."""
+    """Raw dir with fixture HTML: event has Welterweight bout1, Lightweight bout2; only bout1 has fight details."""
     raw = tmp_path / "raw"
     (raw / "ufcstats" / "events").mkdir(parents=True)
     (raw / "ufcstats" / "fights").mkdir(parents=True)
@@ -46,32 +46,50 @@ def raw_dir_from_fixtures(fixtures_dir: Path, tmp_path: Path) -> Path:
     return raw
 
 
-def test_cli_build_dataset_creates_output_files(raw_dir_from_fixtures: Path, tmp_path: Path) -> None:
-    """build-dataset creates fighters.json, events.json, bouts.json, stats.jsonl."""
+def test_cli_build_dataset_welterweight_only(raw_dir_from_fixtures: Path, tmp_path: Path) -> None:
+    """build-dataset --division Welterweight emits only welterweight bout and its stats."""
     out = tmp_path / "processed"
-    proc = _run_fightmatch("build-dataset", "--raw", str(raw_dir_from_fixtures), "--out", str(out))
+    proc = _run_fightmatch(
+        "build-dataset",
+        "--raw", str(raw_dir_from_fixtures),
+        "--out", str(out),
+        "--division", "Welterweight",
+    )
     assert proc.returncode == 0, (proc.stdout, proc.stderr)
     assert (out / "fighters.json").exists()
     assert (out / "events.json").exists()
     assert (out / "bouts.json").exists()
     assert (out / "stats.jsonl").exists()
+    bouts = json.loads((out / "bouts.json").read_text())
+    assert len(bouts) == 1
+    assert bouts[0].get("weight_class") == "Welterweight"
+    assert bouts[0].get("bout_id") == "bout1"
     fighters = json.loads((out / "fighters.json").read_text())
     assert len(fighters) >= 2
 
 
-def test_cli_features_creates_csv(raw_dir_from_fixtures: Path, tmp_path: Path) -> None:
-    """features creates a CSV with expected header."""
+def test_cli_features_welterweight_only(raw_dir_from_fixtures: Path, tmp_path: Path) -> None:
+    """features --division Welterweight outputs only welterweight rows."""
     processed = tmp_path / "processed"
-    processed.mkdir()
-    (processed / "fighters.json").write_text("[]")
-    (processed / "events.json").write_text("[]")
-    (processed / "bouts.json").write_text("[]")
-    (processed / "stats.jsonl").write_text("")
+    proc = _run_fightmatch(
+        "build-dataset",
+        "--raw", str(raw_dir_from_fixtures),
+        "--out", str(processed),
+        "--division", "Welterweight",
+    )
+    assert proc.returncode == 0
     out_csv = tmp_path / "features.csv"
-    proc = _run_fightmatch("features", "--in", str(processed), "--out", str(out_csv))
+    proc = _run_fightmatch(
+        "features",
+        "--in", str(processed),
+        "--out", str(out_csv),
+        "--division", "Welterweight",
+    )
     assert proc.returncode == 0, (proc.stdout, proc.stderr)
     assert out_csv.exists()
-    assert "fighter_id" in out_csv.read_text()
+    text = out_csv.read_text()
+    assert "fighter_id" in text
+    assert "Welterweight" in text
 
 
 def test_cli_recommend_fails_when_features_missing(tmp_path: Path) -> None:
@@ -80,31 +98,127 @@ def test_cli_recommend_fails_when_features_missing(tmp_path: Path) -> None:
         "recommend",
         "--features", str(tmp_path / "nonexistent.csv"),
         "--processed", str(tmp_path),
-        "--division", "Lightweight",
+        "--division", "Welterweight",
         "--top", "5",
     )
     assert proc.returncode == 1
 
 
-def test_cli_recommend_succeeds_for_division(tmp_path: Path) -> None:
-    """recommend runs successfully for a division when features CSV exists."""
-    features_csv = tmp_path / "features.csv"
-    features_csv.write_text(
-        "fighter_id,name,weight_class,activity_recency_days,win_streak,last_5_win_pct,"
-        "sig_str_diff_per_min,td_rate,td_attempts_per_15,control_per_15,finish_rate,opponent_recent_win_pct_avg\n"
-        "f1,Alice,Lightweight,60,2,0.8,5.0,0.5,3.0,30,0.4,0.6\n"
-        "f2,Bob,Lightweight,90,1,0.6,4.0,0.3,2.0,20,0.2,0.5\n",
-        encoding="utf-8",
-    )
+def test_cli_recommend_welterweight_writes_report_and_prints_summary(
+    raw_dir_from_fixtures: Path, tmp_path: Path
+) -> None:
+    """Full welterweight pipeline: build-dataset -> features -> recommend; report JSON and terminal summary."""
     processed = tmp_path / "processed"
-    processed.mkdir()
-    (processed / "bouts.json").write_text("[]")
+    reports = tmp_path / "reports"
+    proc = _run_fightmatch(
+        "build-dataset",
+        "--raw", str(raw_dir_from_fixtures),
+        "--out", str(processed),
+        "--division", "Welterweight",
+    )
+    assert proc.returncode == 0
+    features_csv = tmp_path / "features.csv"
+    proc = _run_fightmatch(
+        "features",
+        "--in", str(processed),
+        "--out", str(features_csv),
+        "--division", "Welterweight",
+    )
+    assert proc.returncode == 0
     proc = _run_fightmatch(
         "recommend",
         "--features", str(features_csv),
         "--processed", str(processed),
-        "--division", "Lightweight",
+        "--division", "Welterweight",
+        "--top", "5",
+        "--reports-dir", str(reports),
+    )
+    assert proc.returncode == 0, (proc.stdout, proc.stderr)
+    assert (reports / "recommend.json").exists()
+    data = json.loads((reports / "recommend.json").read_text())
+    assert data.get("division") == "Welterweight"
+    assert "top_contenders" in data
+    assert "matchup_recommendations" in data
+
+
+def test_cli_divisions_and_recommend_all(raw_dir_from_fixtures: Path, tmp_path: Path) -> None:
+    """divisions lists Welterweight; recommend-all generates per-division reports and summary."""
+    processed = tmp_path / "processed"
+    reports = tmp_path / "reports"
+    features_csv = tmp_path / "features.csv"
+
+    # Build minimal welterweight processed + features
+    proc = _run_fightmatch(
+        "build-dataset",
+        "--raw", str(raw_dir_from_fixtures),
+        "--out", str(processed),
+        "--division", "Welterweight",
+    )
+    assert proc.returncode == 0, (proc.stdout, proc.stderr)
+    proc = _run_fightmatch(
+        "features",
+        "--in", str(processed),
+        "--out", str(features_csv),
+        "--division", "Welterweight",
+    )
+    assert proc.returncode == 0, (proc.stdout, proc.stderr)
+
+    # divisions
+    proc = _run_fightmatch(
+        "divisions",
+        "--processed", str(processed),
+        "--features", str(features_csv),
+    )
+    assert proc.returncode == 0, (proc.stdout, proc.stderr)
+    assert "Welterweight" in proc.stdout
+
+    # recommend-all
+    proc = _run_fightmatch(
+        "recommend-all",
+        "--features", str(features_csv),
+        "--processed", str(processed),
+        "--reports-dir", str(reports),
         "--top", "3",
     )
     assert proc.returncode == 0, (proc.stdout, proc.stderr)
-    assert "FightMatch" in proc.stdout or "recommended" in proc.stdout.lower() or "vs" in proc.stdout
+    # Only welterweight division exists in this fixture-based pipeline
+    welter_slug = "welterweight"
+    assert (reports / f"{welter_slug}.json").exists()
+    assert (reports / f"{welter_slug}.md").exists()
+    assert (reports / "summary.md").exists()
+    data = json.loads((reports / f"{welter_slug}.json").read_text())
+    assert data.get("division") == "Welterweight"
+    assert "top_contenders" in data
+    assert "matchup_recommendations" in data
+
+
+def test_cli_demo_uses_existing_data(raw_dir_from_fixtures: Path, tmp_path: Path) -> None:
+    """demo reuses processed + features and writes reports/summary without network."""
+    processed = tmp_path / "processed"
+    reports = tmp_path / "reports"
+    features_csv = tmp_path / "features.csv"
+
+    proc = _run_fightmatch(
+        "build-dataset",
+        "--raw", str(raw_dir_from_fixtures),
+        "--out", str(processed),
+        "--division", "Welterweight",
+    )
+    assert proc.returncode == 0, (proc.stdout, proc.stderr)
+    proc = _run_fightmatch(
+        "features",
+        "--in", str(processed),
+        "--out", str(features_csv),
+        "--division", "Welterweight",
+    )
+    assert proc.returncode == 0, (proc.stdout, proc.stderr)
+
+    proc = _run_fightmatch(
+        "demo",
+        "--processed", str(processed),
+        "--features", str(features_csv),
+        "--reports-dir", str(reports),
+        "--top", "3",
+    )
+    assert proc.returncode == 0, (proc.stdout, proc.stderr)
+    assert (reports / "summary.md").exists()
