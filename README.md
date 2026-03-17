@@ -8,11 +8,101 @@
 - **Division-aware**: works across all UFC divisions detected in the processed dataset.
 - **Artifact-first**: produces machine-readable JSON and human-readable Markdown reports, suitable for portfolios and lightweight analytics workflows.
 
+## System Capabilities
+
+- **Sports data ingestion** — rate-limited HTTP scraping of a live third-party source with disk-based caching, retry logic, and configurable TTL; no external data libraries required.
+- **Structured dataset construction** — HTML parsing pipeline that normalises semi-structured event, bout, and per-fight statistics pages into clean, queryable JSON and JSONL artefacts.
+- **Fighter performance analytics** — engineered feature set covering activity decay, recent form, striking and grappling efficiency, finish rate, and opponent quality; all metrics are interpretable and deterministic.
+- **Fighter rating engine** — composite 0–10 scoring model with explicitly weighted, normalised components; produces per-division rankings and percentile positions.
+- **Matchup simulation** — heuristic win-probability proxy derived from a logistic function over fighter rating deltas, paired with competitive balance, style contrast, and divisional rank-impact scores.
+- **Promoter decision scoring** — configurable multi-factor model that weights competitive balance, divisional relevance, activity readiness, rematch freshness, and style interest to rank candidate matchups from a business perspective.
+- **Explainable outputs** — every recommendation is accompanied by human-readable factor signals; no black-box scoring.
+- **Automated report generation** — CLI pipeline writes structured JSON and Markdown reports for each division and a cross-division summary, suitable for downstream analytics workflows or portfolio review.
+
 ## Why it exists
 
 - To demonstrate a **production-like analytics pipeline** on real-world sports data (scraping → dataset → features → rankings → recommendations).
 - To provide a **clean, recruiter-friendly codebase**: minimal dependencies, offline tests, and a clear end-to-end story.
 - To explore **matchmaking heuristics** (activity, rank gaps, rematch avoidance, style clashes) in a way that’s transparent and configurable.
+
+## System Architecture
+
+```
+  ┌─────────────────────────────────────────┐
+  │             UFCStats.com                │
+  │   (event results, fight stats, bouts)   │
+  └────────────────────┬────────────────────┘
+                       │ HTTP (rate-limited, retried)
+                       ▼
+  ┌─────────────────────────────────────────┐
+  │           Scraping Layer                │
+  │   fightmatch scrape --since YYYY-MM-DD  │
+  └────────────────────┬────────────────────┘
+                       │
+                       ▼
+  ┌─────────────────────────────────────────┐
+  │         Raw HTML Cache                  │
+  │   data/raw/ufcstats/  (TTL: 7 days)    │
+  └────────────────────┬────────────────────┘
+                       │
+                       ▼
+  ┌─────────────────────────────────────────┐
+  │          Dataset Builder                │
+  │   fightmatch build-dataset              │
+  └────────────────────┬────────────────────┘
+                       │
+                       ▼
+  ┌─────────────────────────────────────────┐
+  │       Structured Datasets               │
+  │   fighters.json  ·  events.json         │
+  │   bouts.json     ·  stats.jsonl         │
+  └────────────────────┬────────────────────┘
+                       │
+                       ▼
+  ┌─────────────────────────────────────────┐
+  │         Feature Engineering             │
+  │   fightmatch features                   │
+  │                                         │
+  │   activity · form · efficiency          │
+  │   finish rate · opponent quality        │
+  └────────────────────┬────────────────────┘
+                       │
+                       ▼
+  ┌─────────────────────────────────────────┐
+  │          Analytics Engine               │
+  │   Fighter Rating  (0–10)                │
+  │   Fighter Profile · Style Archetype     │
+  │   Division Rankings                     │
+  └──────────┬──────────────────────────────┘
+             │
+             ▼
+  ┌─────────────────────────────────────────┐
+  │       Matchup Simulation Engine         │
+  │   Win probability proxy (logistic)      │
+  │   Competitiveness · Style contrast      │
+  │   Rank impact                           │
+  └──────────┬──────────────────────────────┘
+             │
+             ▼
+  ┌─────────────────────────────────────────┐
+  │        Promoter Decision Model          │
+  │   Competitiveness  30%                  │
+  │   Divisional relevance  20%             │
+  │   Activity readiness  20%               │
+  │   Freshness · Style interest  25%       │
+  │   Fan interest proxy  5%                │
+  └──────────┬──────────────────────────────┘
+             │
+             ▼
+  ┌─────────────────────────────────────────┐
+  │     Decision-Support Outputs            │
+  │   data/reports/<division>.json          │
+  │   data/reports/<division>.md            │
+  │   data/reports/summary.md              │
+  └─────────────────────────────────────────┘
+```
+
+The pipeline begins by scraping real fight data from UFCStats into a local HTML cache, then parses that cache into normalized JSON datasets (fighters, events, bouts, per-fight statistics). Feature engineering runs over the structured data to produce per-fighter metrics — activity decay, recent form, striking and grappling efficiency, finish rate, and opponent quality. The analytics engine converts those metrics into a composite 0–10 fighter rating and a rich style profile for each fighter, which powers division rankings. Finally, the matchup simulation engine evaluates all candidate pairings by computing win probability, competitive balance, and style contrast, while the promoter decision model applies configurable business weights to surface the highest-value fights as JSON and Markdown reports.
 
 ## Install
 
@@ -110,17 +200,40 @@ pip install -e ".[dev]"
 
 ## Demo
 
-After running the scrape → build-dataset → features steps once, you can generate a full portfolio-ready analytics snapshot with:
+After running the scrape → build-dataset → features steps once, generate a full analytics snapshot:
 
 ```bash
 fightmatch demo
 ```
 
-This will:
+This detects divisions from your local processed data and features, runs `recommend-all` across all detected divisions, and writes JSON + Markdown reports under `data/reports/`.
 
-- Detect divisions from existing processed data and features.
-- Run `recommend-all` across all detected divisions.
-- Write JSON + Markdown reports under `data/reports/`, including `summary.md`.
+`fightmatch demo` requires real local data. If the processed directory or features file is missing or empty, it will tell you exactly which step to run next.
+
+## Example outputs
+
+The [`examples/`](examples/) directory contains annotated templates that mirror the exact structure of every report FightMatch produces. Each file uses `[placeholder]` tokens in place of computed values so the format is clear without requiring a live data run.
+
+| File | Corresponding CLI command |
+|------|--------------------------|
+| [`examples/fighter_profile_example.md`](examples/fighter_profile_example.md) | `fightmatch fighter-profile` |
+| [`examples/matchup_simulation_example.md`](examples/matchup_simulation_example.md) | `fightmatch simulate` |
+| [`examples/division_recommendations_example.md`](examples/division_recommendations_example.md) | `fightmatch recommend` / `recommend-all` |
+
+Actual reports with computed values are written to `data/reports/` when you run the pipeline against real UFC data.
+
+## Data availability
+
+FightMatch operates exclusively on real UFC-derived data. It does not ship any bundled or fabricated fighter rows.
+
+| Situation | Behaviour |
+|-----------|-----------|
+| UFCStats reachable | `fightmatch scrape` downloads and caches raw HTML |
+| UFCStats unreachable | `scrape` exits cleanly; tells you whether cached HTML is available to continue from |
+| Cached HTML present, no network needed | `build-dataset` + `features` + `demo` work fully offline from the cache |
+| No data at all | Commands fail with a precise message and the exact command to run next |
+
+The scrape cache (`data/raw/`) is gitignored and lives on your local machine. Once you have scraped and built a processed dataset, all analysis commands work without any further network access.
 
 ## Data ethics
 
@@ -136,14 +249,16 @@ This will:
 ├── pyproject.toml
 ├── README.md
 ├── src/fightmatch/
-│   ├── cli.py            # CLI entrypoint
-│   ├── config.py         # Scrape/matchmaking config
-│   ├── cache.py          # Disk cache for HTTP responses
-│   ├── scrape/           # UFCStats client, parse, schemas, store
-│   ├── data/             # public data API
-│   ├── match/            # rank, score, explain
+│   ├── cli.py              # CLI entrypoint (all commands)
+│   ├── config.py           # Scrape/matchmaking config
+│   ├── cache.py            # Disk cache for HTTP responses
+│   ├── scrape/             # UFCStats client, parse, schemas, store
+│   ├── data/               # public data API
+│   ├── match/              # rank, score, explain
+│   ├── analytics/          # fighter rating engine + analytics profile
+│   ├── engine/             # matchup simulation + promoter decision scoring
 │   └── utils/
-├── tests/                # offline, fixture-based tests
+├── tests/                  # offline, fixture-based tests (68 tests)
 └── .github/workflows/ci.yml
 ```
 
