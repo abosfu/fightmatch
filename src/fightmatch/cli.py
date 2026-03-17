@@ -8,6 +8,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import requests
+
 from fightmatch.config import MatchConfig, ScrapeConfig, normalize_division
 from fightmatch.scrape.store import build_dataset
 from fightmatch.match.features import build_features
@@ -156,8 +158,38 @@ def cmd_scrape(args: argparse.Namespace) -> int:
     since = _parse_since(args.since)
     division = (args.division or "").strip()
     log(f"Scraping UFCStats since {since} -> {out}" + (f" (division={division})" if division else ""))
-    scrape_since(since, out, config=ScrapeConfig(), division=division)
-    return 0
+    try:
+        scrape_since(since, out, config=ScrapeConfig(), division=division)
+        return 0
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+        log(f"Network error: could not reach UFCStats ({type(e).__name__}).")
+        _suggest_offline_path(out)
+        return 1
+    except requests.exceptions.RequestException as e:
+        log(f"UFCStats request failed: {e}")
+        _suggest_offline_path(out)
+        return 1
+    except Exception as e:
+        log(f"Scrape failed: {e}")
+        _suggest_offline_path(out)
+        return 1
+
+
+def _suggest_offline_path(raw_dir: Path) -> None:
+    """Print a helpful next-step message after a scrape failure."""
+    cached_events = list((raw_dir / "ufcstats" / "events").glob("*.html")) if raw_dir.exists() else []
+    if cached_events:
+        log(
+            f"Cached HTML found in {raw_dir} ({len(cached_events)} event file(s)). "
+            "You can continue with cached data:"
+        )
+        log(f"  fightmatch build-dataset --raw {raw_dir} --out data/processed")
+        log(f"  fightmatch features --in data/processed --out data/features/features.csv")
+        log(f"  fightmatch demo --processed data/processed --features data/features/features.csv")
+    else:
+        log("No cached data found. UFCStats must be reachable to build a dataset.")
+        log("Retry when the connection is restored:")
+        log(f"  fightmatch scrape --since YYYY-MM-DD --out {raw_dir}")
 
 
 def cmd_build_dataset(args: argparse.Namespace) -> int:
@@ -214,7 +246,11 @@ def cmd_fighter_profile(args: argparse.Namespace) -> int:
 
     if not matches:
         log(f"No fighter found matching: '{args.fighter}'")
-        log(f"Available fighters: {', '.join(r.get('name', '') for r in all_rows[:10])}")
+        names = [r.get("name", "") for r in all_rows[:10] if r.get("name")]
+        if names:
+            log(f"Available fighters (first 10): {', '.join(names)}")
+        else:
+            log("Features file appears empty. Run: fightmatch features --in data/processed --out ...")
         return 1
 
     reports_dir = Path(args.reports_dir or "data/reports")
@@ -344,13 +380,15 @@ def cmd_recommend(args: argparse.Namespace) -> int:
     if not div_rows:
         if not all_rows:
             log(
-                f"No feature rows found in {features_path}. "
-                f"Run: fightmatch features --in {processed_dir} --out {features_path} "
-                f"--division \"{division or 'Welterweight'}\""
+                f"Features file {features_path} exists but contains zero rows. "
+                f"Re-run: fightmatch features --in {processed_dir} --out {features_path}"
             )
         else:
+            known = sorted({r.get("weight_class", "") for r in all_rows if r.get("weight_class")})
             log(
-                f"No fighters found for division={division or 'All'} in {features_path}."
+                f"No fighters found for division='{division}' in {features_path}. "
+                f"Available divisions: {', '.join(known) or 'none detected'}. "
+                f"Re-run with --division matching one of the above."
             )
         return 1
 
@@ -454,10 +492,21 @@ def cmd_divisions(args: argparse.Namespace) -> int:
     features_path = Path(args.features) if args.features else None
     divisions = _detect_divisions(processed, features_path)
     if not divisions:
-        log(
-            f"No divisions detected. Run: fightmatch scrape --since YYYY-MM-DD --out data/raw "
-            f"and fightmatch build-dataset --raw data/raw --out {processed}"
-        )
+        if not processed.exists():
+            log(
+                f"Processed data directory not found: {processed}. "
+                "Run: fightmatch scrape ... && fightmatch build-dataset ..."
+            )
+        elif features_path and not features_path.exists():
+            log(
+                f"Features file not found: {features_path}. "
+                f"Run: fightmatch features --in {processed} --out {features_path}"
+            )
+        else:
+            log(
+                f"No divisions detected in {processed}. "
+                "The processed dataset may be empty or the features CSV has no rows."
+            )
         return 1
     print("# FightMatch divisions")
     for _, label in divisions:
@@ -611,29 +660,18 @@ def cmd_recommend_all(args: argparse.Namespace) -> int:
 
 def cmd_demo(args: argparse.Namespace) -> int:
     """
-    Lightweight local demo:
-    - Assumes data has already been scraped + processed + features built.
-    - Runs recommend-all across all detected divisions.
+    Runs recommend-all across all detected divisions using real local data.
+    Requires a prior scrape + build-dataset + features run.
     """
     processed_dir = Path(args.processed)
     features_path = Path(args.features)
     reports_dir = Path(args.reports_dir or "data/reports")
 
-    if not processed_dir.exists() or not (processed_dir / "bouts.json").exists():
-        log(
-            f"No processed data found in {processed_dir}. "
-            "Run: fightmatch scrape --since YYYY-MM-DD --out data/raw "
-            f"and fightmatch build-dataset --raw data/raw --out {processed_dir}"
-        )
-        return 1
-    if not features_path.exists():
-        log(
-            f"No features file found at {features_path}. "
-            f"Run: fightmatch features --in {processed_dir} --out {features_path}"
-        )
+    ok, reason = _validate_local_data(processed_dir, features_path)
+    if not ok:
+        log(reason)
         return 1
 
-    log("Running FightMatch demo: recommend-all across detected divisions.")
     demo_args = argparse.Namespace(
         top=args.top,
         features=str(features_path),
@@ -648,6 +686,57 @@ def cmd_demo(args: argparse.Namespace) -> int:
     if rc == 0:
         log(f"Demo complete. Reports written under {reports_dir}")
     return rc
+
+
+def _validate_local_data(processed_dir: Path, features_path: Path) -> tuple[bool, str]:
+    """
+    Check that processed dir and features file exist and contain real data.
+    Returns (ok, human-readable reason string).
+    """
+    bouts_path = processed_dir / "bouts.json"
+
+    if not processed_dir.exists():
+        return False, (
+            f"Processed data directory not found: {processed_dir}\n"
+            "  Run: fightmatch scrape --since YYYY-MM-DD --out data/raw\n"
+            "       fightmatch build-dataset --raw data/raw --out data/processed"
+        )
+
+    if not bouts_path.exists():
+        return False, (
+            f"bouts.json not found in {processed_dir}\n"
+            "  Run: fightmatch build-dataset --raw data/raw --out data/processed"
+        )
+
+    try:
+        bouts = json.loads(bouts_path.read_text(encoding="utf-8"))
+    except Exception:
+        bouts = []
+    if not bouts:
+        return False, (
+            f"bouts.json in {processed_dir} is empty.\n"
+            "  Run: fightmatch build-dataset --raw data/raw --out data/processed\n"
+            "  If data/raw is also empty, a new scrape is needed:\n"
+            "       fightmatch scrape --since YYYY-MM-DD --out data/raw"
+        )
+
+    if not features_path.exists():
+        return False, (
+            f"Features file not found: {features_path}\n"
+            f"  Run: fightmatch features --in {processed_dir} --out {features_path}"
+        )
+
+    try:
+        rows = load_features_csv(features_path)
+    except Exception:
+        rows = []
+    if not rows:
+        return False, (
+            f"Features file {features_path} contains no rows.\n"
+            f"  Run: fightmatch features --in {processed_dir} --out {features_path}"
+        )
+
+    return True, ""
 
 
 # ── Argument parser ───────────────────────────────────────────────────────────
