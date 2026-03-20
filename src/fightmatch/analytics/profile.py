@@ -11,6 +11,10 @@ import dataclasses
 from dataclasses import dataclass
 from typing import Optional
 
+from fightmatch.analytics.consistency import (
+    consistency_score as _consistency_score,
+    volatility_label as _volatility_label,
+)
 from fightmatch.analytics.rating import FighterRating, rate_fighter, rate_all, _f
 
 
@@ -54,6 +58,10 @@ class FighterProfile:
 
     # Style synthesis
     style_archetype: str
+
+    # Reliability
+    consistency_score: float    # 0–1 composite reliability metric
+    volatility_label: str       # "Stable" | "High-Risk / High-Reward" | "Inconsistent" | "Steady"
 
 
 # ── Label helpers ─────────────────────────────────────────────────────────────
@@ -195,6 +203,8 @@ def build_profile(row: dict, all_division_rows: list[dict]) -> FighterProfile:
         opp_win_pct_avg=opp,
         sos_label=_sos_label(opp),
         style_archetype=_style_archetype(sig, td_rate, td_per_15, ctrl, finish),
+        consistency_score=_consistency_score(last5, streak, days),
+        volatility_label=_volatility_label(last5, finish),
     )
 
 
@@ -222,6 +232,8 @@ def profile_to_dict(p: FighterProfile) -> dict:
         "opp_win_pct_avg": p.opp_win_pct_avg,
         "sos_label": p.sos_label,
         "style_archetype": p.style_archetype,
+        "consistency_score": p.consistency_score,
+        "volatility_label": p.volatility_label,
         "rating_components": {
             "activity": p.rating.activity_score,
             "form": p.rating.form_score,
@@ -250,6 +262,7 @@ def format_profile_terminal(p: FighterProfile) -> str:
         f"",
         f"  ACTIVITY      {p.activity_status}  (last fight {p.days_since_last_fight:.0f} days ago)",
         f"  MOMENTUM      {p.momentum}  (win streak: {p.win_streak} | last 5: {p.last_5_win_pct:.0%})",
+        f"  RELIABILITY   {p.volatility_label}  (consistency: {p.consistency_score:.3f})",
         f"  STRIKING      {p.striking_label}  ({p.sig_str_per_min:.1f} sig strikes/min)",
         f"  GRAPPLING     {p.grappling_label}  (TD rate: {p.td_rate:.2f} | control: {p.control_per_15:.0f}s/15min)",
         f"  FINISHING     {p.finish_label}  ({p.finish_rate:.0%} finish rate)",
@@ -284,6 +297,7 @@ def format_profile_markdown(p: FighterProfile) -> str:
         f"| Archetype | {p.style_archetype} |",
         f"| Activity | {p.activity_status} ({p.days_since_last_fight:.0f} days since last fight) |",
         f"| Momentum | {p.momentum} (streak: {p.win_streak} \\| last 5: {p.last_5_win_pct:.0%}) |",
+        f"| Reliability | {p.volatility_label} (consistency: {p.consistency_score:.3f}) |",
         f"| Striking | {p.striking_label} ({p.sig_str_per_min:.1f} sig/min) |",
         f"| Grappling | {p.grappling_label} (TD rate: {p.td_rate:.2f} \\| control: {p.control_per_15:.0f}s/15min) |",
         f"| Finishing | {p.finish_label} ({p.finish_rate:.0%}) |",
