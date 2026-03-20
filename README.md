@@ -19,6 +19,33 @@
 - **Explainable outputs** — every recommendation is accompanied by human-readable factor signals; no black-box scoring.
 - **Automated report generation** — CLI pipeline writes structured JSON and Markdown reports for each division and a cross-division summary, suitable for downstream analytics workflows or portfolio review.
 
+## Advanced Analytics Features
+
+Four additional analytical layers built on top of the core rating and matchup engine:
+
+### Explainability Layer
+Every recommended matchup now produces narrative bullets derived from promoter score components — not just per-fighter stat signals. `explain_matchup_narrative(sim, ps)` converts competitiveness, divisional relevance, activity readiness, freshness, and fan interest scores into plain-English observations that appear in CLI output and reports.
+
+### What-If Scenario Engine
+`fightmatch simulate --what-if <scenario>` runs a counterfactual on Fighter A and shows how their rating, win probability, and the matchup's promoter score shift under that scenario. Four built-in scenarios:
+
+| Scenario | Effect on Fighter A |
+|----------|---------------------|
+| `short-notice` | Recency reset to 14 days; −10% recent form |
+| `long-layoff` | +365 days added to inactivity |
+| `win-streak-boost` | +2 win streak; +20% recent form |
+| `recent-loss-penalty` | Streak reset to 0; −20% recent form |
+
+### Division Landscape Summary
+`recommend-all` and `demo` print a per-division snapshot before the matchup recommendations. Metrics: fighter count, active count, depth score (fraction rating ≥ 5.0), activity level (High/Medium/Low), title picture clarity (Clear/Contested/Stagnant/Developing), contender logjam detection, and top-rated fighter. Landscape data is also written into each division's JSON report.
+
+### Consistency & Volatility Metrics
+Each fighter profile now includes two reliability metrics computed from the features CSV:
+- **Consistency score (0–1):** weighted combination of recent win rate (50%), win streak (30%), and activity regularity (20%).
+- **Volatility label:** `Stable` (winning + decision-oriented), `High-Risk / High-Reward` (elite finisher), `Inconsistent` (losing without finishing), or `Steady`.
+
+---
+
 ## Why it exists
 
 - To demonstrate a **production-like analytics pipeline** on real-world sports data (scraping → dataset → features → rankings → recommendations).
@@ -258,7 +285,7 @@ The scrape cache (`data/raw/`) is gitignored and lives on your local machine. On
 │   ├── analytics/          # fighter rating engine + analytics profile
 │   ├── engine/             # matchup simulation + promoter decision scoring
 │   └── utils/
-├── tests/                  # offline, fixture-based tests (68 tests)
+├── tests/                  # offline, fixture-based tests (119 tests)
 └── .github/workflows/ci.yml
 ```
 

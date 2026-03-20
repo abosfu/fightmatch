@@ -13,7 +13,7 @@ import requests
 from fightmatch.config import MatchConfig, ScrapeConfig, normalize_division
 from fightmatch.scrape.store import build_dataset
 from fightmatch.match.features import build_features
-from fightmatch.match import rank_by_division, select_matchups, explain_matchup, load_features_csv
+from fightmatch.match import explain_matchup, load_features_csv
 from fightmatch.scrape import scrape_since
 from fightmatch.utils.log import log
 from fightmatch.analytics.rating import rate_all
@@ -29,7 +29,10 @@ from fightmatch.engine.simulate import (
     format_simulation_terminal,
     format_simulation_markdown,
 )
+from fightmatch.analytics.landscape import build_landscape, format_landscape_terminal
+from fightmatch.engine.explain import explain_matchup_narrative
 from fightmatch.engine.promoter import select_matchups_ranked
+from fightmatch.engine.whatif import SCENARIOS, format_whatif_terminal, run_whatif
 
 
 # ── Shared utilities ──────────────────────────────────────────────────────────
@@ -334,6 +337,23 @@ def cmd_simulate(args: argparse.Namespace) -> int:
     # Terminal output
     print(format_simulation_terminal(sim))
 
+    # What-if scenario (optional)
+    if getattr(args, "what_if", None):
+        scenario_key = args.what_if
+        if scenario_key not in SCENARIOS:
+            log(
+                f"Unknown what-if scenario: '{scenario_key}'. "
+                f"Valid options: {', '.join(SCENARIOS)}"
+            )
+        else:
+            whatif_result = run_whatif(
+                row_a, row_b, scenario_key,
+                rank_pos_a=rank_a, rank_pos_b=rank_b,
+                n_division_fighters=n_fighters,
+            )
+            if whatif_result:
+                print(format_whatif_terminal(whatif_result, sim.fighter_a, sim.fighter_b))
+
     # Write reports
     reports_dir = Path(args.reports_dir or "data/reports")
     reports_dir.mkdir(parents=True, exist_ok=True)
@@ -430,8 +450,9 @@ def cmd_recommend(args: argparse.Namespace) -> int:
 
     matchup_recommendations = []
     for row_a, row_b, sim, ps in selected[:5]:
-        key_factors = sim.key_factors or explain_matchup(
-            row_a, row_b, sim.rating_a, sim.rating_b
+        narrative = explain_matchup_narrative(sim, ps)
+        key_factors = list(sim.key_factors) + narrative if sim.key_factors else (
+            narrative or explain_matchup(row_a, row_b, sim.rating_a, sim.rating_b)
         )
         matchup_recommendations.append({
             "matchup": f"{row_a.get('name', row_a.get('fighter_id', ''))} vs "
@@ -545,14 +566,16 @@ def cmd_recommend_all(args: argparse.Namespace) -> int:
     all_rows = load_features_csv(features_path)
 
     summary_entries: list[dict] = []
+    n_divisions = len(divisions)
 
-    for _norm, label in divisions:
+    for div_idx, (_, label) in enumerate(divisions, start=1):
         division = label
+        log(f"[{div_idx}/{n_divisions}] Processing {division}...")
         target = normalize_division(division)
         div_rows = [r for r in all_rows if normalize_division(r.get("weight_class")) == target]
 
         if not div_rows:
-            log(f"Skipping division={division}: no fighters with features.")
+            log(f"  Skipping {division}: no fighters with features.")
             continue
 
         # Rate and rank fighters
@@ -571,6 +594,9 @@ def cmd_recommend_all(args: argparse.Namespace) -> int:
             log(f"Skipping division={division}: could not form matchups.")
             continue
 
+        # Division landscape
+        landscape = build_landscape(division, ratings)
+
         top_contenders = [
             {
                 "rank": i,
@@ -583,8 +609,9 @@ def cmd_recommend_all(args: argparse.Namespace) -> int:
 
         matchup_recommendations = []
         for row_a, row_b, sim, ps in selected[:5]:
-            key_factors = sim.key_factors or explain_matchup(
-                row_a, row_b, sim.rating_a, sim.rating_b
+            narrative = explain_matchup_narrative(sim, ps)
+            key_factors = list(sim.key_factors) + narrative if sim.key_factors else (
+                narrative or explain_matchup(row_a, row_b, sim.rating_a, sim.rating_b)
             )
             matchup_recommendations.append({
                 "matchup": f"{row_a.get('name', row_a.get('fighter_id', ''))} vs "
@@ -610,14 +637,26 @@ def cmd_recommend_all(args: argparse.Namespace) -> int:
         md_path = reports_dir / f"{slug}.md"
         report_data = {
             "division": division,
+            "landscape": {
+                "fighter_count": landscape.fighter_count,
+                "active_count": landscape.active_count,
+                "depth_score": landscape.depth_score,
+                "activity_level": landscape.activity_level,
+                "title_picture_clarity": landscape.title_picture_clarity,
+                "logjam": landscape.logjam,
+                "top_rated_fighter": landscape.top_rated_fighter,
+                "rating_spread": landscape.rating_spread,
+                "notes": landscape.notes,
+            },
             "top_contenders": top_contenders,
             "matchup_recommendations": matchup_recommendations,
         }
         json_path.write_text(json.dumps(report_data, indent=2), encoding="utf-8")
         _write_division_markdown(md_path, division, top_contenders, matchup_recommendations)
-        log(f"Wrote {json_path}")
-        log(f"Wrote {md_path}")
+        log(f"  Wrote {json_path}")
+        log(f"  Wrote {md_path}")
 
+        print(format_landscape_terminal(landscape))
         summary_entries.append({
             "division": division,
             "top_contenders": top_contenders[:3],
@@ -682,9 +721,15 @@ def cmd_demo(args: argparse.Namespace) -> int:
         allow_short_notice=False,
         avoid_rematch=True,
     )
+    divisions = _detect_divisions(processed_dir, features_path)
+    log(f"Demo: {len(divisions)} division(s) detected. Running recommend-all...")
     rc = cmd_recommend_all(demo_args)
     if rc == 0:
-        log(f"Demo complete. Reports written under {reports_dir}")
+        written = list(reports_dir.glob("*.json")) if reports_dir.exists() else []
+        log(
+            f"Demo complete. {len(written)} report file(s) written under {reports_dir}. "
+            f"See {reports_dir / 'summary.md'} for the cross-division overview."
+        )
     return rc
 
 
@@ -790,6 +835,16 @@ def main() -> int:
     p_sim.add_argument("--features", default="data/features/features.csv")
     p_sim.add_argument("--processed", default="data/processed")
     p_sim.add_argument("--reports-dir", default="data/reports")
+    p_sim.add_argument(
+        "--what-if",
+        dest="what_if",
+        default=None,
+        metavar="SCENARIO",
+        help=(
+            "Run a what-if scenario on Fighter A. "
+            f"Options: {', '.join(SCENARIOS)}"
+        ),
+    )
     p_sim.set_defaults(func=cmd_simulate)
 
     # recommend
