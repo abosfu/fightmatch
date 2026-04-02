@@ -21,13 +21,13 @@ from fightmatch.analytics.rating import FighterRating
 class DivisionLandscape:
     division: str
     fighter_count: int
-    active_count: int             # activity_score ≥ 0.5  (proxy for ≤ 365 days)
-    depth_score: float            # 0–1
-    activity_level: str           # "High" | "Medium" | "Low"
-    title_picture_clarity: str    # "Clear" | "Contested" | "Stagnant" | "Developing"
+    active_count: int  # activity_score ≥ 0.5  (proxy for ≤ 365 days)
+    depth_score: float  # 0–1
+    activity_level: str  # "High" | "Medium" | "Low"
+    title_picture_clarity: str  # "Clear" | "Contested" | "Stagnant" | "Developing"
     logjam: bool
     top_rated_fighter: str
-    rating_spread: float          # max − min rating
+    rating_spread: float  # max − min rating
     notes: list[str] = field(default_factory=list)
 
 
@@ -43,7 +43,7 @@ def _title_picture_clarity(sorted_ratings: list[FighterRating]) -> str:
     if len(sorted_ratings) < 2:
         return "Developing"
     # Stagnant: all of the top 3 have an activity proxy suggesting > 365 days out
-    top_n = sorted_ratings[:min(3, len(sorted_ratings))]
+    top_n = sorted_ratings[: min(3, len(sorted_ratings))]
     if all(r.activity_score < 0.50 for r in top_n):
         return "Stagnant"
     gap = sorted_ratings[0].rating - sorted_ratings[1].rating
@@ -82,7 +82,9 @@ def _build_notes(ls: DivisionLandscape) -> list[str]:
             "Division appears stagnant — the leading contenders have all been inactive for an extended period"
         )
     else:
-        notes.append("Division still developing — no clear separation between the top contenders")
+        notes.append(
+            "Division still developing — no clear separation between the top contenders"
+        )
 
     if ls.logjam:
         notes.append(
@@ -101,7 +103,9 @@ def _build_notes(ls: DivisionLandscape) -> list[str]:
             f"Deep division — {ls.depth_score:.0%} of fighters rate above the competitive baseline"
         )
     elif ls.depth_score <= 0.30:
-        notes.append("Shallow division — few fighters currently meet the competitive baseline")
+        notes.append(
+            "Shallow division — few fighters currently meet the competitive baseline"
+        )
 
     return notes
 

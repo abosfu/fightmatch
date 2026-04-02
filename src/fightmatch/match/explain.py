@@ -23,7 +23,9 @@ def explain_matchup(
             f"Both top-{max(rank_positions[0], rank_positions[1])} by rank score, within {rank_diff:.2f} points"
         )
     else:
-        reasons.append(f"Rank scores within {rank_diff:.2f} points ({rank_a:.2f} vs {rank_b:.2f})")
+        reasons.append(
+            f"Rank scores within {rank_diff:.2f} points ({rank_a:.2f} vs {rank_b:.2f})"
+        )
     # Streak vs opponent quality
     streak_a = fighter_a.get("win_streak") or 0
     streak_b = fighter_b.get("win_streak") or 0
@@ -51,7 +53,9 @@ def explain_matchup(
     if rec_a is not None and rec_b is not None:
         max_rec = max(rec_a, rec_b)
         if max_rec <= 180:
-            reasons.append(f"Both active within last 180 days (good booking probability proxy)")
+            reasons.append(
+                "Both active within last 180 days (good booking probability proxy)"
+            )
         else:
             reasons.append(f"Last fight recency: A {rec_a} days, B {rec_b} days")
     # Cap at 6

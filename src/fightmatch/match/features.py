@@ -25,12 +25,26 @@ def _parse_date(s: str | None) -> datetime | None:
     return None
 
 
-def load_processed(processed_dir: Path) -> tuple[list[dict], list[dict], list[dict], list[dict]]:
+def load_processed(
+    processed_dir: Path,
+) -> tuple[list[dict], list[dict], list[dict], list[dict]]:
     """Load fighters, events, bouts, stats from processed dir."""
     p = Path(processed_dir)
-    fighters = json.loads((p / "fighters.json").read_text(encoding="utf-8")) if (p / "fighters.json").exists() else []
-    events = json.loads((p / "events.json").read_text(encoding="utf-8")) if (p / "events.json").exists() else []
-    bouts = json.loads((p / "bouts.json").read_text(encoding="utf-8")) if (p / "bouts.json").exists() else []
+    fighters = (
+        json.loads((p / "fighters.json").read_text(encoding="utf-8"))
+        if (p / "fighters.json").exists()
+        else []
+    )
+    events = (
+        json.loads((p / "events.json").read_text(encoding="utf-8"))
+        if (p / "events.json").exists()
+        else []
+    )
+    bouts = (
+        json.loads((p / "bouts.json").read_text(encoding="utf-8"))
+        if (p / "bouts.json").exists()
+        else []
+    )
     stats_list: list[dict] = []
     if (p / "stats.jsonl").exists():
         with open(p / "stats.jsonl", encoding="utf-8") as f:
@@ -43,7 +57,9 @@ def load_processed(processed_dir: Path) -> tuple[list[dict], list[dict], list[di
 def build_features(processed_dir: Path, out_path: Path, division: str = "") -> None:
     """Build per-fighter features CSV. If division is set, only output rows for that weight class."""
     fighters, events, bouts, stats_list = load_processed(processed_dir)
-    event_dates = {e["event_id"]: _parse_date(e.get("date")) for e in events if e.get("event_id")}
+    event_dates = {
+        e["event_id"]: _parse_date(e.get("date")) for e in events if e.get("event_id")
+    }
     event_dates = {k: v for k, v in event_dates.items() if v is not None}
     stats_by_bout: dict[str, list[dict]] = {}
     for s in stats_list:
@@ -65,14 +81,25 @@ def build_features(processed_dir: Path, out_path: Path, division: str = "") -> N
         stat_rows = stats_by_bout.get(bid, [])
         red_s = next((r for r in stat_rows if r.get("corner") == "red"), {})
         blue_s = next((r for r in stat_rows if r.get("corner") == "blue"), {})
-        for fid, opp, corner, st in [(red_id, blue_id, "red", red_s), (blue_id, red_id, "blue", blue_s)]:
+        for fid, opp, corner, st in [
+            (red_id, blue_id, "red", red_s),
+            (blue_id, red_id, "blue", blue_s),
+        ]:
             if not fid:
                 continue
-            won = (winner == "red" and corner == "red") or (winner == "blue" and corner == "blue")
-            fighter_bouts.setdefault(fid, []).append({
-                "date": dt, "opponent_id": opp, "won": won, "weight_class": wc,
-                "stat": st, "round_minutes": 5.0,
-            })
+            won = (winner == "red" and corner == "red") or (
+                winner == "blue" and corner == "blue"
+            )
+            fighter_bouts.setdefault(fid, []).append(
+                {
+                    "date": dt,
+                    "opponent_id": opp,
+                    "won": won,
+                    "weight_class": wc,
+                    "stat": st,
+                    "round_minutes": 5.0,
+                }
+            )
 
     fighter_weight_class: dict[str, str] = {}
     for fid, h in fighter_bouts.items():
@@ -82,10 +109,18 @@ def build_features(processed_dir: Path, out_path: Path, division: str = "") -> N
                 fighter_weight_class[fid] = wc
 
     fieldnames = [
-        "fighter_id", "name", "weight_class",
-        "activity_recency_days", "win_streak", "last_5_win_pct",
-        "sig_str_diff_per_min", "td_rate", "td_attempts_per_15", "control_per_15",
-        "finish_rate", "opponent_recent_win_pct_avg",
+        "fighter_id",
+        "name",
+        "weight_class",
+        "activity_recency_days",
+        "win_streak",
+        "last_5_win_pct",
+        "sig_str_diff_per_min",
+        "td_rate",
+        "td_attempts_per_15",
+        "control_per_15",
+        "finish_rate",
+        "opponent_recent_win_pct_avg",
     ]
     target_division = normalize_division(division) if division else ""
     out_path = Path(out_path)
@@ -96,7 +131,9 @@ def build_features(processed_dir: Path, out_path: Path, division: str = "") -> N
         fid = f.get("fighter_id")
         if not fid:
             continue
-        history = sorted(fighter_bouts.get(fid, []), key=lambda x: x["date"], reverse=True)
+        history = sorted(
+            fighter_bouts.get(fid, []), key=lambda x: x["date"], reverse=True
+        )
         wc = fighter_weight_class.get(fid)
         if not history:
             rows.append({k: None for k in fieldnames})
@@ -113,7 +150,9 @@ def build_features(processed_dir: Path, out_path: Path, division: str = "") -> N
             else:
                 break
         last_5 = history[:5]
-        last_5_win_pct = sum(1 for h in last_5 if h["won"]) / len(last_5) if last_5 else None
+        last_5_win_pct = (
+            sum(1 for h in last_5 if h["won"]) / len(last_5) if last_5 else None
+        )
         finishes = sum(1 for h in history if (h.get("round_minutes") or 5) < 4)
         finish_rate = finishes / len(history) if history else None
         sig_per_min = 0.0
@@ -131,19 +170,33 @@ def build_features(processed_dir: Path, out_path: Path, division: str = "") -> N
         td_per_15 = (td_landed + td_att) / max(0.01, total_mins) * 15
         ctrl_per_15 = ctrl / max(0.01, total_mins) * 15 * 60
         opp_avg = None
-        rows.append({
-            "fighter_id": fid, "name": f.get("name", fid), "weight_class": wc,
-            "activity_recency_days": recency, "win_streak": win_streak,
-            "last_5_win_pct": round(last_5_win_pct, 4) if last_5_win_pct is not None else None,
-            "sig_str_diff_per_min": round(sig_per_min / max(1, len(history)), 4),
-            "td_rate": round(td_rate, 4), "td_attempts_per_15": round(td_per_15, 4),
-            "control_per_15": round(ctrl_per_15, 4),
-            "finish_rate": round(finish_rate, 4) if finish_rate is not None else None,
-            "opponent_recent_win_pct_avg": opp_avg,
-        })
+        rows.append(
+            {
+                "fighter_id": fid,
+                "name": f.get("name", fid),
+                "weight_class": wc,
+                "activity_recency_days": recency,
+                "win_streak": win_streak,
+                "last_5_win_pct": round(last_5_win_pct, 4)
+                if last_5_win_pct is not None
+                else None,
+                "sig_str_diff_per_min": round(sig_per_min / max(1, len(history)), 4),
+                "td_rate": round(td_rate, 4),
+                "td_attempts_per_15": round(td_per_15, 4),
+                "control_per_15": round(ctrl_per_15, 4),
+                "finish_rate": round(finish_rate, 4)
+                if finish_rate is not None
+                else None,
+                "opponent_recent_win_pct_avg": opp_avg,
+            }
+        )
 
     if target_division:
-        rows = [r for r in rows if normalize_division(r.get("weight_class")) == target_division]
+        rows = [
+            r
+            for r in rows
+            if normalize_division(r.get("weight_class")) == target_division
+        ]
 
     with open(out_path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")

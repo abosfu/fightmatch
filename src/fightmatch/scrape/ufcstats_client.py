@@ -8,7 +8,7 @@ from pathlib import Path
 
 import requests
 
-from fightmatch.cache import DiskCache, cache_key
+from fightmatch.cache import DiskCache
 from fightmatch.config import ScrapeConfig
 from fightmatch.utils.log import log
 
@@ -61,7 +61,7 @@ def fetch(
         except requests.RequestException as e:
             last_error = e
             if attempt < config.max_retries - 1:
-                backoff = config.retry_backoff_base ** attempt
+                backoff = config.retry_backoff_base**attempt
                 time.sleep(backoff)
     raise last_error or RuntimeError("fetch failed")
 
@@ -86,10 +86,12 @@ def discover_events_since(
             continue
         # Normalize date: YYYY-MM-DD or "Mon DD, YYYY"
         import re
+
         m = re.search(r"(\d{4})-(\d{2})-(\d{2})", d)
         if not m:
             # try "Jan 1, 2024"
             from datetime import datetime
+
             try:
                 dt = datetime.strptime(d.strip(), "%B %d, %Y")
                 d = dt.strftime("%Y-%m-%d")
@@ -121,7 +123,10 @@ def scrape_since(
     from fightmatch.config import normalize_division
 
     config = config or ScrapeConfig()
-    cache = DiskCache(Path(raw_dir) / "ufcstats", ttl_seconds=config.rate_limit_seconds * 0 + 86400 * 7)
+    cache = DiskCache(
+        Path(raw_dir) / "ufcstats",
+        ttl_seconds=config.rate_limit_seconds * 0 + 86400 * 7,
+    )
     rate_limiter = RateLimiter(config.rate_limit_seconds, config.rate_limit_jitter)
 
     events = discover_events_since(since_date, config, cache, rate_limiter)
@@ -132,7 +137,7 @@ def scrape_since(
     events_dir.mkdir(parents=True, exist_ok=True)
     fights_dir.mkdir(parents=True, exist_ok=True)
 
-    from .parse import parse_event_page, parse_fight_details
+    from .parse import parse_event_page
 
     target_division = normalize_division(division) if division else ""
 
@@ -144,12 +149,17 @@ def scrape_since(
         log(f"Event: {event_id}")
         html = fetch(url, config, cache, rate_limiter).decode("utf-8", errors="replace")
         (events_dir / f"{event_id}.html").write_text(html, encoding="utf-8")
-        event_info, bouts, fight_links = parse_event_page(html, event_id, config.base_url)
+        event_info, bouts, fight_links = parse_event_page(
+            html, event_id, config.base_url
+        )
         # If division filter: only fetch fights for bouts in that weight class
         bout_ids_in_division = set()
         if target_division:
             for b in bouts:
-                if b.get("bout_id") and normalize_division(b.get("weight_class")) == target_division:
+                if (
+                    b.get("bout_id")
+                    and normalize_division(b.get("weight_class")) == target_division
+                ):
                     bout_ids_in_division.add(b["bout_id"])
         for fl in fight_links:
             bout_id = fl.get("bout_id")

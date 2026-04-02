@@ -1,4 +1,10 @@
-"""Rank score per division: weighted sum with decay."""
+"""LEGACY (v1 engine) — Superseded by analytics.rating and engine.promoter.
+
+Kept for backward compatibility with test_rank_score.py.
+New code should use fightmatch.analytics.rating.rate_all instead.
+
+Original purpose: rank score per division via weighted sum with decay.
+"""
 
 from __future__ import annotations
 
@@ -16,9 +22,15 @@ def load_features_csv(path: Path) -> list[dict]:
         for r in csv.DictReader(f):
             # Coerce numeric
             for key in (
-                "activity_recency_days", "win_streak", "last_5_win_pct",
-                "sig_str_diff_per_min", "td_rate", "td_attempts_per_15",
-                "control_per_15", "finish_rate", "opponent_recent_win_pct_avg",
+                "activity_recency_days",
+                "win_streak",
+                "last_5_win_pct",
+                "sig_str_diff_per_min",
+                "td_rate",
+                "td_attempts_per_15",
+                "control_per_15",
+                "finish_rate",
+                "opponent_recent_win_pct_avg",
             ):
                 if key in r and r[key] not in ("", None):
                     try:
@@ -53,11 +65,16 @@ def rank_score(
     opp_qual_val = opp_qual if opp_qual is not None else 0.5
     finish_rate = row.get("finish_rate")
     finish_val = finish_rate if finish_rate is not None else 0.0
-    activity_bonus = 1.0 if (reference_recency_days is None or recency <= reference_recency_days) else 0.5
+    activity_bonus = (
+        1.0
+        if (reference_recency_days is None or recency <= reference_recency_days)
+        else 0.5
+    )
     if config.allow_short_notice:
         activity_bonus = 1.0
     score = (
-        decay * (
+        decay
+        * (
             2.0 * win_streak
             + 1.5 * last_5_val
             + 1.0 * opp_qual_val

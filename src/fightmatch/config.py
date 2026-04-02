@@ -10,7 +10,8 @@ from pathlib import Path
 @dataclass
 class ScrapeConfig:
     """Scraping behavior."""
-    base_url: str = "https://www.ufcstats.com"
+
+    base_url: str = "http://www.ufcstats.com"
     rate_limit_seconds: float = 1.0
     rate_limit_jitter: float = 0.3
     request_timeout: int = 30
@@ -22,6 +23,7 @@ class ScrapeConfig:
 @dataclass
 class CacheConfig:
     """Disk cache for raw responses."""
+
     dir: Path = field(default_factory=lambda: Path("data/raw/ufcstats"))
     ttl_seconds: int = 86400 * 7  # 7 days
 
@@ -29,11 +31,12 @@ class CacheConfig:
 @dataclass
 class MatchConfig:
     """Business knobs for ranking and matchup scoring."""
-    prioritize_contender_clarity: bool = True   # rank merit over name
-    prioritize_action: bool = False            # favor finish_rate + high pace
-    allow_short_notice: bool = False            # relax activity_recency constraint
-    decay_half_life_days: float = 365.0        # exponential decay for older fights
-    avoid_immediate_rematch: bool = True       # skip recent same pairing
+
+    prioritize_contender_clarity: bool = True  # rank merit over name
+    prioritize_action: bool = False  # favor finish_rate + high pace
+    allow_short_notice: bool = False  # relax activity_recency constraint
+    decay_half_life_days: float = 365.0  # exponential decay for older fights
+    avoid_immediate_rematch: bool = True  # skip recent same pairing
 
 
 def get_cache_dir() -> Path:
