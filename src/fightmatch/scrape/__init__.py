@@ -4,13 +4,12 @@ from .parse import (
     parse_event_page,
     parse_events_list,
     parse_fight_details,
-    schema_to_dict,
 )
 from .schemas import Bout, Event, Fighter, FightStats
 from .ufcstats_client import (
     RateLimiter,
-    fetch,
     discover_events_since,
+    fetch,
     scrape_since,
 )
 
@@ -19,12 +18,11 @@ __all__ = [
     "Event",
     "Fighter",
     "FightStats",
+    "RateLimiter",
+    "discover_events_since",
+    "fetch",
     "parse_event_page",
     "parse_events_list",
     "parse_fight_details",
-    "schema_to_dict",
-    "RateLimiter",
-    "fetch",
-    "discover_events_since",
     "scrape_since",
 ]

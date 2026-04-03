@@ -48,14 +48,24 @@ def build_dataset(raw_dir: Path, out_dir: Path, division: str = "") -> None:
             event_info, bouts, fight_links = parse_event_page(html, event_id)
             events_list.append(event_info)
             for b in bouts:
-                if target_division and normalize_division(b.get("weight_class")) != target_division:
+                if (
+                    target_division
+                    and normalize_division(b.get("weight_class")) != target_division
+                ):
                     continue
                 if not b.get("bout_id"):
                     continue
                 bouts_list.append(b)
                 for fid in (b.get("red_fighter_id"), b.get("blue_fighter_id")):
                     if fid and fid not in fighters_by_id:
-                        fighters_by_id[fid] = {"fighter_id": fid, "name": fid, "height": None, "reach": None, "stance": None, "dob": None}
+                        fighters_by_id[fid] = {
+                            "fighter_id": fid,
+                            "name": fid,
+                            "height": None,
+                            "reach": None,
+                            "stance": None,
+                            "dob": None,
+                        }
 
             for fl in fight_links:
                 bout_id = fl.get("bout_id")
@@ -63,19 +73,39 @@ def build_dataset(raw_dir: Path, out_dir: Path, division: str = "") -> None:
                     continue
                 if target_division:
                     # Only process fights for bouts we kept
-                    matching = next((x for x in bouts if x.get("bout_id") == bout_id), None)
-                    if not matching or normalize_division(matching.get("weight_class")) != target_division:
+                    matching = next(
+                        (x for x in bouts if x.get("bout_id") == bout_id), None
+                    )
+                    if (
+                        not matching
+                        or normalize_division(matching.get("weight_class"))
+                        != target_division
+                    ):
                         continue
                 fight_path = fights_dir / f"{bout_id}.html"
                 if not fight_path.exists():
                     continue
                 try:
-                    fight_html = fight_path.read_text(encoding="utf-8", errors="replace")
-                    red_s, blue_s, fighter_infos = parse_fight_details(fight_html, bout_id)
+                    fight_html = fight_path.read_text(
+                        encoding="utf-8", errors="replace"
+                    )
+                    red_s, blue_s, fighter_infos = parse_fight_details(
+                        fight_html, bout_id
+                    )
                     for info in fighter_infos:
                         fid = info.get("fighter_id")
                         if fid:
-                            fighters_by_id.setdefault(fid, {"fighter_id": fid, "name": fid, "height": None, "reach": None, "stance": None, "dob": None})["name"] = info.get("name", fid)
+                            fighters_by_id.setdefault(
+                                fid,
+                                {
+                                    "fighter_id": fid,
+                                    "name": fid,
+                                    "height": None,
+                                    "reach": None,
+                                    "stance": None,
+                                    "dob": None,
+                                },
+                            )["name"] = info.get("name", fid)
                     if red_s and red_s.get("fighter_id"):
                         stats_list.append(red_s)
                     if blue_s and blue_s.get("fighter_id"):
@@ -94,9 +124,15 @@ def build_dataset(raw_dir: Path, out_dir: Path, division: str = "") -> None:
             unique_events.append(e)
 
     fighters_out = list(fighters_by_id.values())
-    (out_dir / "fighters.json").write_text(json.dumps(fighters_out, indent=2), encoding="utf-8")
-    (out_dir / "events.json").write_text(json.dumps(unique_events, indent=2), encoding="utf-8")
-    (out_dir / "bouts.json").write_text(json.dumps(bouts_list, indent=2), encoding="utf-8")
+    (out_dir / "fighters.json").write_text(
+        json.dumps(fighters_out, indent=2), encoding="utf-8"
+    )
+    (out_dir / "events.json").write_text(
+        json.dumps(unique_events, indent=2), encoding="utf-8"
+    )
+    (out_dir / "bouts.json").write_text(
+        json.dumps(bouts_list, indent=2), encoding="utf-8"
+    )
     with open(out_dir / "stats.jsonl", "w", encoding="utf-8") as f:
         for s in stats_list:
             f.write(json.dumps(s) + "\n")

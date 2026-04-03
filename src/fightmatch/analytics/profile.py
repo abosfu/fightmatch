@@ -7,9 +7,7 @@ style archetype, and all descriptive labels used in reports.
 
 from __future__ import annotations
 
-import dataclasses
 from dataclasses import dataclass
-from typing import Optional
 
 from fightmatch.analytics.consistency import (
     consistency_score as _consistency_score,
@@ -27,44 +25,51 @@ class FighterProfile:
 
     # Rating
     rating: FighterRating
-    rating_percentile: float        # 0–100 within division (100 = top)
+    rating_percentile: float  # 0–100 within division (100 = top)
 
     # Activity
     days_since_last_fight: float
-    activity_status: str            # "Active" | "Semi-Active" | "Inactive"
+    activity_status: str  # "Active" | "Semi-Active" | "Inactive"
 
     # Form & momentum
     win_streak: int
     last_5_win_pct: float
-    momentum: str                   # "Rising" | "Steady" | "Declining"
+    momentum: str  # "Rising" | "Steady" | "Declining"
 
     # Striking
     sig_str_per_min: float
-    striking_label: str             # "High-Volume" | "Technical" | "Average" | "Limited"
+    striking_label: str  # "High-Volume" | "Technical" | "Average" | "Limited"
 
     # Grappling
     td_rate: float
     td_per_15: float
     control_per_15: float
-    grappling_label: str            # "Dominant Grappler" | "Active Wrestler" | "Balanced" | "Striker"
+    grappling_label: (
+        str  # "Dominant Grappler" | "Active Wrestler" | "Balanced" | "Striker"
+    )
 
     # Finishing
     finish_rate: float
-    finish_label: str               # "Elite Finisher" | "High Finisher" | "Balanced" | "Decision Fighter"
+    finish_label: (
+        str  # "Elite Finisher" | "High Finisher" | "Balanced" | "Decision Fighter"
+    )
 
     # Strength of schedule
     opp_win_pct_avg: float
-    sos_label: str                  # "Elite" | "Strong" | "Moderate" | "Developing"
+    sos_label: str  # "Elite" | "Strong" | "Moderate" | "Developing"
 
     # Style synthesis
     style_archetype: str
 
     # Reliability
-    consistency_score: float    # 0–1 composite reliability metric
-    volatility_label: str       # "Stable" | "High-Risk / High-Reward" | "Inconsistent" | "Steady"
+    consistency_score: float  # 0–1 composite reliability metric
+    volatility_label: (
+        str  # "Stable" | "High-Risk / High-Reward" | "Inconsistent" | "Steady"
+    )
 
 
 # ── Label helpers ─────────────────────────────────────────────────────────────
+
 
 def _activity_status(days: float) -> str:
     if days <= 180:
@@ -165,6 +170,7 @@ def _rating_percentile(fighter_id: str, all_division_rows: list[dict]) -> float:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+
 def build_profile(row: dict, all_division_rows: list[dict]) -> FighterProfile:
     """Build a FighterProfile from a features row and all rows in the same division."""
     rating = rate_fighter(row)
@@ -252,14 +258,14 @@ def format_profile_terminal(p: FighterProfile) -> str:
     bar = "█" * filled + "░" * (bar_width - filled)
 
     lines = [
-        f"",
+        "",
         f"  {'=' * 52}",
         f"  Fighter Profile: {p.name}",
         f"  {'=' * 52}",
         f"  Division:     {p.division}",
         f"  Rating:       {r:.1f} / 10  [{bar}]  (Top {100 - p.rating_percentile:.0f}%)",
         f"  Archetype:    {p.style_archetype}",
-        f"",
+        "",
         f"  ACTIVITY      {p.activity_status}  (last fight {p.days_since_last_fight:.0f} days ago)",
         f"  MOMENTUM      {p.momentum}  (win streak: {p.win_streak} | last 5: {p.last_5_win_pct:.0%})",
         f"  RELIABILITY   {p.volatility_label}  (consistency: {p.consistency_score:.3f})",
@@ -267,14 +273,14 @@ def format_profile_terminal(p: FighterProfile) -> str:
         f"  GRAPPLING     {p.grappling_label}  (TD rate: {p.td_rate:.2f} | control: {p.control_per_15:.0f}s/15min)",
         f"  FINISHING     {p.finish_label}  ({p.finish_rate:.0%} finish rate)",
         f"  COMPETITION   {p.sos_label}  (avg opp win %: {p.opp_win_pct_avg:.2f})",
-        f"",
-        f"  Rating components:",
+        "",
+        "  Rating components:",
         f"    Activity:        {p.rating.activity_score:.3f}",
         f"    Form:            {p.rating.form_score:.3f}",
         f"    Efficiency:      {p.rating.efficiency_score:.3f}",
         f"    Opp. Quality:    {p.rating.opponent_quality_score:.3f}",
         f"    Finish Ability:  {p.rating.finish_ability_score:.3f}",
-        f"",
+        "",
     ]
     return "\n".join(lines)
 
@@ -282,17 +288,18 @@ def format_profile_terminal(p: FighterProfile) -> str:
 def format_profile_markdown(p: FighterProfile) -> str:
     """Render a FighterProfile as a Markdown report string."""
     from datetime import datetime
+
     ts = datetime.now().isoformat(timespec="seconds")
     lines = [
         f"# Fighter Profile: {p.name}",
-        f"",
+        "",
         f"**Division:** {p.division}  ",
         f"**Generated:** {ts}",
-        f"",
-        f"## Summary",
-        f"",
-        f"| Field | Value |",
-        f"|-------|-------|",
+        "",
+        "## Summary",
+        "",
+        "| Field | Value |",
+        "|-------|-------|",
         f"| Rating | {p.rating.rating:.1f} / 10 (Top {100 - p.rating_percentile:.0f}%) |",
         f"| Archetype | {p.style_archetype} |",
         f"| Activity | {p.activity_status} ({p.days_since_last_fight:.0f} days since last fight) |",
@@ -302,17 +309,17 @@ def format_profile_markdown(p: FighterProfile) -> str:
         f"| Grappling | {p.grappling_label} (TD rate: {p.td_rate:.2f} \\| control: {p.control_per_15:.0f}s/15min) |",
         f"| Finishing | {p.finish_label} ({p.finish_rate:.0%}) |",
         f"| Competition | {p.sos_label} (avg opp win %: {p.opp_win_pct_avg:.2f}) |",
-        f"",
-        f"## Rating Components",
-        f"",
-        f"| Component | Score |",
-        f"|-----------|-------|",
+        "",
+        "## Rating Components",
+        "",
+        "| Component | Score |",
+        "|-----------|-------|",
         f"| Activity (25%) | {p.rating.activity_score:.3f} |",
         f"| Form (25%) | {p.rating.form_score:.3f} |",
         f"| Efficiency (20%) | {p.rating.efficiency_score:.3f} |",
         f"| Opponent Quality (15%) | {p.rating.opponent_quality_score:.3f} |",
         f"| Finish Ability (15%) | {p.rating.finish_ability_score:.3f} |",
         f"| **Composite (0–10)** | **{p.rating.rating:.3f}** |",
-        f"",
+        "",
     ]
     return "\n".join(lines)

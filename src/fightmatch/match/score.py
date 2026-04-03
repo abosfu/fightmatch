@@ -1,4 +1,10 @@
-"""Matchup scoring: competitiveness, freshness, style contrast, business knobs."""
+"""LEGACY (v1 engine) — Superseded by engine.promoter.score_matchup.
+
+Kept for backward compatibility with test_rank_score.py.
+New code should use fightmatch.engine.promoter.select_matchups_ranked instead.
+
+Original purpose: matchup scoring with competitiveness, freshness, style contrast, business knobs.
+"""
 
 from __future__ import annotations
 
@@ -98,7 +104,11 @@ def matchup_score(
         score += 0.3
 
     # Extra contender-clarity boost when both are clearly in the mix
-    if config.prioritize_contender_clarity and min(rank_a, rank_b) >= 2.0 and rank_diff <= 0.75:
+    if (
+        config.prioritize_contender_clarity
+        and min(rank_a, rank_b) >= 2.0
+        and rank_diff <= 0.75
+    ):
         score += 0.5
 
     # Action: finish rate + pace

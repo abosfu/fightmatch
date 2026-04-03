@@ -7,8 +7,6 @@ from typing import Any, Optional
 
 from bs4 import BeautifulSoup
 
-from .schemas import Bout, Event, Fighter, FightStats
-
 
 def _text(soup: Any) -> str:
     if soup is None:
@@ -45,7 +43,9 @@ def _slug_from_href(a: Any) -> Optional[str]:
     return parts[-1] if parts else None
 
 
-def parse_events_list(html: str, base_url: str = "https://www.ufcstats.com") -> list[dict[str, Any]]:
+def parse_events_list(
+    html: str, base_url: str = "https://www.ufcstats.com"
+) -> list[dict[str, Any]]:
     """Parse events completed page. Returns list of {event_id, name, date, url}."""
     soup = BeautifulSoup(html, "html.parser")
     out: list[dict[str, Any]] = []
@@ -67,15 +67,21 @@ def parse_events_list(html: str, base_url: str = "https://www.ufcstats.com") -> 
             cells = row.find_all("td")
             for td in cells:
                 t = _text(td)
-                if re.match(r"\d{4}-\d{2}-\d{2}", t) or re.match(r"\w+\s+\d{1,2},\s*\d{4}", t):
+                if re.match(r"\d{4}-\d{2}-\d{2}", t) or re.match(
+                    r"\w+\s+\d{1,2},\s*\d{4}", t
+                ):
                     date_val = t
                     break
-        out.append({
-            "event_id": event_id,
-            "name": name,
-            "date": date_val,
-            "url": href if href.startswith("http") else f"{base_url.rstrip('/')}{href}",
-        })
+        out.append(
+            {
+                "event_id": event_id,
+                "name": name,
+                "date": date_val,
+                "url": href
+                if href.startswith("http")
+                else f"{base_url.rstrip('/')}{href}",
+            }
+        )
     return out
 
 
@@ -91,10 +97,16 @@ def parse_event_page(
     fight_links_for_stats: [{bout_id, url}, ...] to fetch fight details for stats.
     """
     soup = BeautifulSoup(html, "html.parser")
-    event_name = _text(soup.select_one("h2.b-content__title, .b-content__title a, span.b-content__title"))
+    event_name = _text(
+        soup.select_one(
+            "h2.b-content__title, .b-content__title a, span.b-content__title"
+        )
+    )
     if not event_name:
         event_name = f"Event {event_id}"
-    date_el = soup.select_one(".b-list__box-list-item span, .b-list__box-list .b-list__box-list-item")
+    date_el = soup.select_one(
+        ".b-list__box-list-item span, .b-list__box-list .b-list__box-list-item"
+    )
     event_date = _text(date_el) if date_el else None
     location_el = soup.select_one(".b-list__box-list-item:nth-of-type(2)")
     location = _text(location_el) if location_el else None
@@ -112,7 +124,9 @@ def parse_event_page(
         rows = soup.select("table tbody tr")
     for tr in rows:
         links = tr.find_all("a", href=re.compile(r"fight-details|fighter-details"))
-        fight_link = next((a for a in links if "fight-details" in (a.get("href") or "")), None)
+        fight_link = next(
+            (a for a in links if "fight-details" in (a.get("href") or "")), None
+        )
         fighter_links = [a for a in links if "fighter-details" in (a.get("href") or "")]
         if not fight_link and not fighter_links:
             continue
@@ -128,13 +142,34 @@ def parse_event_page(
         method = round_val = time_val = weight_class = winner = None
         for i, td in enumerate(cells):
             t = _text(td)
-            if "Decision" in t or "KO" in t or "TKO" in t or "SUB" in t or "DQ" in t or "No Contest" in t or "Overturned" in t:
+            if (
+                "Decision" in t
+                or "KO" in t
+                or "TKO" in t
+                or "SUB" in t
+                or "DQ" in t
+                or "No Contest" in t
+                or "Overturned" in t
+            ):
                 method = t
             if re.match(r"^\d+$", t) and round_val is None and len(t) <= 2:
                 round_val = _int(t)
             if re.match(r"\d+:\d+", t):
                 time_val = t
-            if any(w in t.lower() for w in ["heavyweight", "lightweight", "welterweight", "middleweight", "featherweight", "bantamweight", "flyweight", "light heavyweight", "women"]):
+            if any(
+                w in t.lower()
+                for w in [
+                    "heavyweight",
+                    "lightweight",
+                    "welterweight",
+                    "middleweight",
+                    "featherweight",
+                    "bantamweight",
+                    "flyweight",
+                    "light heavyweight",
+                    "women",
+                ]
+            ):
                 # Normalize e.g. "Welterweight Bout" -> "Welterweight" for consistent comparison
                 weight_class = t.strip()
                 if weight_class.lower().endswith(" bout"):
@@ -151,24 +186,30 @@ def parse_event_page(
                 winner = "draw"
             elif "NC" in wl or "NO CONTEST" in wl:
                 winner = "nc"
-        bouts.append({
-            "bout_id": bout_id,
-            "event_id": event_id,
-            "red_fighter_id": red_id,
-            "blue_fighter_id": blue_id,
-            "weight_class": weight_class,
-            "method": method,
-            "round": round_val,
-            "time": time_val,
-            "winner": winner,
-            "ref": None,
-        })
+        bouts.append(
+            {
+                "bout_id": bout_id,
+                "event_id": event_id,
+                "red_fighter_id": red_id,
+                "blue_fighter_id": blue_id,
+                "weight_class": weight_class,
+                "method": method,
+                "round": round_val,
+                "time": time_val,
+                "winner": winner,
+                "ref": None,
+            }
+        )
         if fight_link:
             href = fight_link.get("href") or ""
-            fight_links.append({
-                "bout_id": bout_id,
-                "url": href if href.startswith("http") else f"{base_url.rstrip('/')}{href}",
-            })
+            fight_links.append(
+                {
+                    "bout_id": bout_id,
+                    "url": href
+                    if href.startswith("http")
+                    else f"{base_url.rstrip('/')}{href}",
+                }
+            )
     return event_info, bouts, fight_links
 
 
@@ -191,10 +232,15 @@ def parse_fight_details(
         fid = _slug_from_href(a)
         if fid:
             fighter_infos.append({"fighter_id": fid, "name": _text(a)})
+
     # Stats table: Sig str, TD, etc. Often two columns (red | blue) or two rows.
     def _parse_stats_table() -> tuple[Optional[dict], Optional[dict]]:
         red_s: dict[str, Any] = {"bout_id": bout_id, "fighter_id": "", "corner": "red"}
-        blue_s: dict[str, Any] = {"bout_id": bout_id, "fighter_id": "", "corner": "blue"}
+        blue_s: dict[str, Any] = {
+            "bout_id": bout_id,
+            "fighter_id": "",
+            "corner": "blue",
+        }
         tables = soup.select("table.b-fight-details__table")
         for table in tables:
             rows = table.find_all("tr")
@@ -216,10 +262,16 @@ def parse_fight_details(
                     parts1 = re.split(r"\s+of\s+", v1)
                     parts2 = re.split(r"\s+of\s+", v2)
                     red_s["total_str_landed"] = _int(parts1[0]) if parts1 else _int(v1)
-                    red_s["total_str_att"] = _int(parts1[1]) if len(parts1) > 1 else None
+                    red_s["total_str_att"] = (
+                        _int(parts1[1]) if len(parts1) > 1 else None
+                    )
                     blue_s["total_str_landed"] = _int(parts2[0]) if parts2 else _int(v2)
-                    blue_s["total_str_att"] = _int(parts2[1]) if len(parts2) > 1 else None
-                elif "takedown" in label or (label and "td" in label and "sub" not in label):
+                    blue_s["total_str_att"] = (
+                        _int(parts2[1]) if len(parts2) > 1 else None
+                    )
+                elif "takedown" in label or (
+                    label and "td" in label and "sub" not in label
+                ):
                     parts1 = re.split(r"\s+of\s+", v1)
                     parts2 = re.split(r"\s+of\s+", v2)
                     red_s["td_landed"] = _int(parts1[0]) if parts1 else _int(v1)
@@ -233,6 +285,7 @@ def parse_fight_details(
                     red_s["rev"] = _int(v1)
                     blue_s["rev"] = _int(v2)
                 elif "control" in label or "ctrl" in label:
+
                     def to_seconds(s: str) -> Optional[float]:
                         if not s:
                             return None
@@ -244,24 +297,20 @@ def parse_fight_details(
                                 except ValueError:
                                     return None
                         return _float(s)
+
                     red_s["ctrl_time_seconds"] = to_seconds(v1)
                     blue_s["ctrl_time_seconds"] = to_seconds(v2)
         if fighter_infos:
             red_s["fighter_id"] = fighter_infos[0].get("fighter_id", "")
-            blue_s["fighter_id"] = fighter_infos[1].get("fighter_id", "") if len(fighter_infos) > 1 else ""
+            blue_s["fighter_id"] = (
+                fighter_infos[1].get("fighter_id", "") if len(fighter_infos) > 1 else ""
+            )
         return red_s, blue_s
 
     red_stats, blue_stats = _parse_stats_table()
     if fighter_infos and red_stats and blue_stats:
         red_stats["fighter_id"] = fighter_infos[0].get("fighter_id", "")
-        blue_stats["fighter_id"] = fighter_infos[1].get("fighter_id", "") if len(fighter_infos) > 1 else ""
+        blue_stats["fighter_id"] = (
+            fighter_infos[1].get("fighter_id", "") if len(fighter_infos) > 1 else ""
+        )
     return red_stats, blue_stats, fighter_infos
-
-
-def schema_to_dict(obj: Any) -> dict[str, Any]:
-    """Convert schema instance to dict for JSON."""
-    if hasattr(obj, "model_dump"):
-        return obj.model_dump()
-    if hasattr(obj, "__dict__"):
-        return {k: v for k, v in obj.__dict__.items() if not k.startswith("_")}
-    return dict(obj)

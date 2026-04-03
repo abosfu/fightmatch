@@ -11,7 +11,7 @@ Evaluates a proposed fight between two fighters and returns:
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 from fightmatch.analytics.rating import rate_fighter
@@ -33,13 +33,13 @@ class MatchupSimulation:
     fighter_b: str
     rating_a: float
     rating_b: float
-    win_prob_a: float            # 0–1
-    win_prob_b: float            # 0–1
-    competitiveness: float       # 0–1 (1.0 = perfect 50/50)
+    win_prob_a: float  # 0–1
+    win_prob_b: float  # 0–1
+    competitiveness: float  # 0–1 (1.0 = perfect 50/50)
     competitiveness_label: str
-    style_contrast: float        # 0–1
+    style_contrast: float  # 0–1
     style_contrast_label: str
-    rank_impact: float           # 0–1
+    rank_impact: float  # 0–1
     rank_impact_label: str
     recommendation_summary: str
     key_factors: list[str]
@@ -164,12 +164,16 @@ def _key_factors(
             f"Classic striker-vs-grappler matchup: {name_b}'s output vs {name_a}'s wrestling"
         )
     elif abs(sig_a - sig_b) < 1.0 and abs(td_a - td_b) < 0.15:
-        factors.append("Near-identical style profiles — outcome likely decided by execution and ring generalship")
+        factors.append(
+            "Near-identical style profiles — outcome likely decided by execution and ring generalship"
+        )
 
     fin_a = _f(row_a, "finish_rate")
     fin_b = _f(row_b, "finish_rate")
     if fin_a >= 0.65 and fin_b >= 0.65:
-        factors.append("Both fighters carry elite finishing ability — stoppage expected")
+        factors.append(
+            "Both fighters carry elite finishing ability — stoppage expected"
+        )
     elif fin_a >= 0.65:
         factors.append(f"{name_a}'s finishing rate ({fin_a:.0%}) is a decisive threat")
     elif fin_b >= 0.65:
@@ -289,28 +293,28 @@ def format_simulation_terminal(sim: MatchupSimulation) -> str:
         return "█" * filled + "░" * (bar_width - filled)
 
     lines = [
-        f"",
+        "",
         f"  {'=' * 52}",
-        f"  Matchup Simulation",
+        "  Matchup Simulation",
         f"  {'=' * 52}",
         f"  {sim.fighter_a}  vs  {sim.fighter_b}",
-        f"",
+        "",
         f"  Ratings:       {sim.rating_a:.1f}  vs  {sim.rating_b:.1f}",
         f"  Win Prob:      [{_prob_bar(sim.win_prob_a)}] {sim.win_prob_a:.0%}",
         f"                 [{_prob_bar(sim.win_prob_b)}] {sim.win_prob_b:.0%}",
-        f"",
+        "",
         f"  Competitiveness:  {sim.competitiveness:.2f} / 1.0  ({sim.competitiveness_label})",
         f"  Style Contrast:   {sim.style_contrast:.2f} / 1.0  ({sim.style_contrast_label})",
         f"  Rank Impact:      {sim.rank_impact:.2f} / 1.0  ({sim.rank_impact_label})",
-        f"",
-        f"  Key Factors:",
+        "",
+        "  Key Factors:",
     ]
     for factor in sim.key_factors:
         lines.append(f"    • {factor}")
     lines += [
-        f"",
+        "",
         f"  {sim.recommendation_summary}",
-        f"",
+        "",
     ]
     return "\n".join(lines)
 
@@ -318,37 +322,38 @@ def format_simulation_terminal(sim: MatchupSimulation) -> str:
 def format_simulation_markdown(sim: MatchupSimulation) -> str:
     """Render a MatchupSimulation as a Markdown report string."""
     from datetime import datetime
+
     ts = datetime.now().isoformat(timespec="seconds")
     lines = [
         f"# Matchup Simulation: {sim.fighter_a} vs {sim.fighter_b}",
-        f"",
+        "",
         f"**Generated:** {ts}",
-        f"",
-        f"## Ratings & Win Probability",
-        f"",
-        f"| Fighter | Rating | Win Probability |",
-        f"|---------|--------|-----------------|",
+        "",
+        "## Ratings & Win Probability",
+        "",
+        "| Fighter | Rating | Win Probability |",
+        "|---------|--------|-----------------|",
         f"| {sim.fighter_a} | {sim.rating_a:.1f} / 10 | {sim.win_prob_a:.0%} |",
         f"| {sim.fighter_b} | {sim.rating_b:.1f} / 10 | {sim.win_prob_b:.0%} |",
-        f"",
-        f"## Matchup Metrics",
-        f"",
-        f"| Metric | Score | Label |",
-        f"|--------|-------|-------|",
+        "",
+        "## Matchup Metrics",
+        "",
+        "| Metric | Score | Label |",
+        "|--------|-------|-------|",
         f"| Competitiveness | {sim.competitiveness:.2f} | {sim.competitiveness_label} |",
         f"| Style Contrast | {sim.style_contrast:.2f} | {sim.style_contrast_label} |",
         f"| Rank Impact | {sim.rank_impact:.2f} | {sim.rank_impact_label} |",
-        f"",
-        f"## Key Factors",
-        f"",
+        "",
+        "## Key Factors",
+        "",
     ]
     for factor in sim.key_factors:
         lines.append(f"- {factor}")
     lines += [
-        f"",
-        f"## Recommendation",
-        f"",
+        "",
+        "## Recommendation",
+        "",
         f"**{sim.recommendation_summary}**",
-        f"",
+        "",
     ]
     return "\n".join(lines)

@@ -10,12 +10,18 @@ build/
 .coverage
 htmlcov/
 
-
 # Data / artifacts
-data/
-*.db
+data/raw/
+data/processed/
+data/reports/
+data/generated/
+data/demo_inputs/
 *.pkl
 *.joblib
+
+# SQLite — ignore by default, but keep the portfolio demo DB
+*.db
+!fightmatch.db
 
 # Env
 .env
@@ -31,6 +37,7 @@ data/
 # OS
 .DS_Store
 
-
+# Node / Frontend
 node_modules/
 .pnpm-store/
+frontend/dist/

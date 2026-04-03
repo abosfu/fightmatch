@@ -19,7 +19,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from fightmatch.analytics.rating import rate_fighter, rate_all
 from fightmatch.engine.simulate import MatchupSimulation, simulate
 
 
@@ -59,11 +58,13 @@ class PromoterScore:
     freshness: float
     style_interest: float
     fan_interest: float
-    total: float                 # weighted composite 0–1
-    tier: str                    # Priority | Strong | Consider | Pass
+    total: float  # weighted composite 0–1
+    tier: str  # Priority | Strong | Consider | Pass
 
 
-def _activity_readiness(row_a: dict, row_b: dict, allow_short_notice: bool = False) -> float:
+def _activity_readiness(
+    row_a: dict, row_b: dict, allow_short_notice: bool = False
+) -> float:
     """Both fighters recently active? 1.0 = both active within 180 days."""
     if allow_short_notice:
         return 1.0
@@ -153,13 +154,16 @@ def select_matchups_ranked(
             is_rematch = pair in recent_pairs
 
             sim = simulate(
-                row_a, row_b,
+                row_a,
+                row_b,
                 rank_pos_a=i + 1,
                 rank_pos_b=j + 1,
                 n_division_fighters=n,
             )
             ps = score_matchup(
-                sim, row_a, row_b,
+                sim,
+                row_a,
+                row_b,
                 is_recent_rematch=is_rematch,
                 allow_short_notice=allow_short_notice,
             )

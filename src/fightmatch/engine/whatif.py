@@ -104,6 +104,7 @@ def _apply_scenario(row: dict, scenario_key: str) -> tuple[dict, dict]:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+
 @dataclass(frozen=True)
 class WhatIfResult:
     scenario: str
@@ -153,7 +154,9 @@ def run_whatif(
 
     # Scenario simulation (fighter A modified)
     modified_a, applied = _apply_scenario(row_a, scenario_key)
-    scenario_sim = simulate(modified_a, row_b, rank_pos_a, rank_pos_b, n_division_fighters)
+    scenario_sim = simulate(
+        modified_a, row_b, rank_pos_a, rank_pos_b, n_division_fighters
+    )
     scenario_ps = score_matchup(
         scenario_sim, modified_a, row_b, is_recent_rematch=is_recent_rematch
     )
@@ -183,13 +186,13 @@ def format_whatif_terminal(result: WhatIfResult, name_a: str, name_b: str) -> st
         return f"+{v:.3f}" if v >= 0 else f"{v:.3f}"
 
     lines = [
-        f"",
+        "",
         f"  {'─' * 54}",
         f"  What-If Scenario: {result.scenario}",
         f"  {result.description}",
         f"  {'─' * 54}",
         f"  Fighter affected: {name_a}  (opponent: {name_b})",
-        f"",
+        "",
         f"  {'Metric':<28}  {'Base':>8}  {'Scenario':>10}  {'Delta':>9}",
         f"  {'─' * 60}",
         (
@@ -208,7 +211,7 @@ def format_whatif_terminal(result: WhatIfResult, name_a: str, name_b: str) -> st
             f"  {'Promoter Tier':<28}  {result.base_promoter_tier:>8}"
             f"  {result.scenario_promoter_tier:>10}"
         ),
-        f"",
+        "",
     ]
 
     if result.applied_changes:
